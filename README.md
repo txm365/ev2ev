@@ -1,2 +1,7 @@
 # ev2ev
-Vehicle to Vehicle Mobile Trading System
+
+Vehicle to Vehicle Mobile Trading Application
+
+## Getting Started
+
+
