@@ -36,17 +36,17 @@ com.example.ev2ev.app-jetified-annotation-experimental-1.4.0-34 /home/txm/.gradl
 com.example.ev2ev.app-jetified-datastore-core-release-35 /home/txm/.gradle/caches/8.10.2/transforms/f66b4ebeb8e04a26c0939bfc3a155c4b/transformed/jetified-datastore-core-release/res
 com.example.ev2ev.app-jetified-datastore-release-36 /home/txm/.gradle/caches/8.10.2/transforms/f90f9a7324ae5a46421e1e6e4732c91a/transformed/jetified-datastore-release/res
 com.example.ev2ev.app-core-runtime-2.2.0-37 /home/txm/.gradle/caches/8.10.2/transforms/ff849810dfe34a0ab790c402787c149e/transformed/core-runtime-2.2.0/res
-com.example.ev2ev.app-debug-38 /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/res
-com.example.ev2ev.app-main-39 /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/res
-com.example.ev2ev.app-pngs-40 /home/txm/Desktop/Flutter Projects/ev2ev/build/app/generated/res/pngs/debug
-com.example.ev2ev.app-resValues-41 /home/txm/Desktop/Flutter Projects/ev2ev/build/app/generated/res/resValues/debug
-com.example.ev2ev.app-packageDebugResources-42 /home/txm/Desktop/Flutter Projects/ev2ev/build/app/intermediates/incremental/debug/packageDebugResources/merged.dir
-com.example.ev2ev.app-packageDebugResources-43 /home/txm/Desktop/Flutter Projects/ev2ev/build/app/intermediates/incremental/debug/packageDebugResources/stripped.dir
-com.example.ev2ev.app-debug-44 /home/txm/Desktop/Flutter Projects/ev2ev/build/app/intermediates/merged_res/debug/mergeDebugResources
-com.example.ev2ev.app-debug-45 /home/txm/Desktop/Flutter Projects/ev2ev/build/app_links/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-46 /home/txm/Desktop/Flutter Projects/ev2ev/build/flutter_blue_plus_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-47 /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-48 /home/txm/Desktop/Flutter Projects/ev2ev/build/path_provider_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-49 /home/txm/Desktop/Flutter Projects/ev2ev/build/permission_handler_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-50 /home/txm/Desktop/Flutter Projects/ev2ev/build/shared_preferences_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-51 /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-38 /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/res
+com.example.ev2ev.app-main-39 /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/res
+com.example.ev2ev.app-pngs-40 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/generated/res/pngs/debug
+com.example.ev2ev.app-resValues-41 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/generated/res/resValues/debug
+com.example.ev2ev.app-packageDebugResources-42 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.example.ev2ev.app-packageDebugResources-43 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.example.ev2ev.app-debug-44 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/intermediates/merged_res/debug/mergeDebugResources
+com.example.ev2ev.app-debug-45 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app_links/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-46 /home/txm/Desktop/PROJECT Pull/ev2ev/build/flutter_blue_plus_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-47 /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-48 /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-49 /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-50 /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-51 /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/packaged_res/debug/packageDebugResources

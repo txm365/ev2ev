@@ -13,24 +13,43 @@ void main() {
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => VehicleSettings()),
       ],
-      child: const MyApp(),
+      child: Builder(
+        builder: (context) {
+          final bluetoothProvider = context.read<BluetoothProvider>();
+          return MaterialApp(
+            title: 'EV Dashboard',
+            theme: ThemeData(
+              primarySwatch: Colors.blue,
+              visualDensity: VisualDensity.adaptivePlatformDensity,
+              useMaterial3: true,
+            ),
+            home: bluetoothProvider.errorMessage != null
+                ? _buildErrorScreen(context, bluetoothProvider)
+                : const MainScreen(),
+          );
+        },
+      ),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EV Dashboard',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        useMaterial3: true,
+Widget _buildErrorScreen(BuildContext context, BluetoothProvider provider) {
+  return Scaffold(
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(provider.errorMessage!,
+            style: const TextStyle(fontSize: 18, color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: provider.clearError,
+            child: const Text('Retry Connection'),
+          ),
+        ],
       ),
-      home: const MainScreen(),
-    );
-  }
+    ),
+  );
 }

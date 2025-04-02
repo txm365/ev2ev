@@ -6,21 +6,14 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothProvider with ChangeNotifier {
-    Map<String, dynamic> deviceData = {
-    'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0
+  Map<String, dynamic> deviceData = {
+    'bl': 75.0, // Battery Level
+    'v': 48.2,  // Voltage
+    'I': 2.5,   // Current
+    'T': 32.0,  // Temperature
+    'P': 0.0,   // Power
+    'range': 0.0 // Range
   };
-
- Future<Position?> getCurrentPosition() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      try {
-        return await Geolocator.getCurrentPosition();
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
 
   BluetoothDevice? _connectedDevice;
   List<BluetoothService> _services = [];
@@ -38,6 +31,23 @@ class BluetoothProvider with ChangeNotifier {
   List<BluetoothDevice> get devices => _devices;
   String? get errorMessage => _errorMessage;
 
+  void updateDeviceData(String jsonData) {
+    try {
+      final parsed = jsonDecode(jsonData);
+      deviceData = {
+        'v': parsed['V']?.toDouble() ?? 0.0,
+        'I': parsed['I']?.toDouble() ?? 0.0,
+        'bl': parsed['SOC']?.toDouble() ?? 0.0,
+        'T': parsed['T']?.toDouble() ?? 0.0,
+        'P': parsed['P']?.toDouble() ?? 0.0,
+        'range': parsed['Range']?.toDouble() ?? 0.0,
+      };
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error parsing BLE data: $e');
+    }
+  }
+
   Future<void> connect(BluetoothDevice device) async {
     try {
       _connectedDevice = device;
@@ -49,7 +59,10 @@ class BluetoothProvider with ChangeNotifier {
           if (characteristic.properties.notify) {
             await characteristic.setNotifyValue(true);
             _dataSubscriptions[characteristic.uuid.toString()] =
-                characteristic.onValueReceived.listen(_handleData);
+                characteristic.onValueReceived.listen((value) {
+              final stringData = utf8.decode(value);
+              updateDeviceData(stringData);
+            });
           }
         }
       }
@@ -61,11 +74,6 @@ class BluetoothProvider with ChangeNotifier {
       notifyListeners();
       rethrow;
     }
-  }
-
-  void _handleData(List<int> value) {
-    _receivedData += utf8.decode(value);
-    notifyListeners();
   }
 
   Future<void> disconnect() async {
@@ -84,7 +92,6 @@ class BluetoothProvider with ChangeNotifier {
   Future<void> startScan() async {
     try {
       _errorMessage = null;
-      
       if (await FlutterBluePlus.isSupported == false) {
         throw Exception("Bluetooth not supported on this device");
       }
@@ -145,6 +152,23 @@ class BluetoothProvider with ChangeNotifier {
     _scanSubscription?.cancel();
     FlutterBluePlus.stopScan();
     notifyListeners();
+  }
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  Future<Position?> getCurrentPosition() async {
+    final status = await Permission.location.request();
+    if (status.isGranted) {
+      try {
+        return await Geolocator.getCurrentPosition();
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   @override

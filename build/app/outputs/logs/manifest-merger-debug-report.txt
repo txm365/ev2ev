@@ -1,13 +1,13 @@
 -- Merging decision tree log ---
 application
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:23:5-54:19
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
-MERGED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-13:19
-MERGED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-13:19
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:23:5-54:19
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
+MERGED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-13:19
+MERGED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-13:19
 MERGED from [com.google.android.gms:play-services-location:21.2.0] /home/txm/.gradle/caches/8.10.2/transforms/cc3336a24e8ef5d3d66fff7f5ca80854/transformed/jetified-play-services-location-21.2.0/AndroidManifest.xml:7:5-20
 MERGED from [com.google.android.gms:play-services-location:21.2.0] /home/txm/.gradle/caches/8.10.2/transforms/cc3336a24e8ef5d3d66fff7f5ca80854/transformed/jetified-play-services-location-21.2.0/AndroidManifest.xml:7:5-20
-MERGED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
-MERGED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
+MERGED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
+MERGED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
 MERGED from [androidx.window:window:1.2.0] /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/AndroidManifest.xml:22:5-29:19
 MERGED from [androidx.window:window:1.2.0] /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/AndroidManifest.xml:22:5-29:19
 MERGED from [com.google.android.gms:play-services-base:18.3.0] /home/txm/.gradle/caches/8.10.2/transforms/9db9b81a577112600e8d2ee7b5450923/transformed/jetified-play-services-base-18.3.0/AndroidManifest.xml:19:5-23:19
@@ -27,25 +27,25 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/txm/.gradle/caches/8.
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/txm/.gradle/caches/8.10.2/transforms/92a2169b5b2674c8bbe10e1b1d80da0f/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/txm/.gradle/caches/8.10.2/transforms/92a2169b5b2674c8bbe10e1b1d80da0f/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
 	android:extractNativeLibs
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] /home/txm/.gradle/caches/8.10.2/transforms/8cf478dec41eed746328fa8046755ba2/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
 	android:name
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml
 manifest
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:1:1-66:12
-MERGED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:1:1-66:12
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
-MERGED from [:shared_preferences_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
-MERGED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-15:12
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:1:1-66:12
+MERGED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:1:1-66:12
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml:1:1-7:12
+MERGED from [:shared_preferences_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
+MERGED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-15:12
 MERGED from [com.google.android.gms:play-services-location:21.2.0] /home/txm/.gradle/caches/8.10.2/transforms/cc3336a24e8ef5d3d66fff7f5ca80854/transformed/jetified-play-services-location-21.2.0/AndroidManifest.xml:2:1-9:12
-MERGED from [:app_links] /home/txm/Desktop/Flutter Projects/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
-MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-11:12
-MERGED from [:path_provider_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
-MERGED from [:permission_handler_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
-MERGED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-14:12
+MERGED from [:app_links] /home/txm/Desktop/PROJECT Pull/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
+MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-11:12
+MERGED from [:path_provider_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
+MERGED from [:permission_handler_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
+MERGED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-14:12
 MERGED from [androidx.preference:preference:1.2.1] /home/txm/.gradle/caches/8.10.2/transforms/0098a6e93522fecc805d8900172003dc/transformed/preference-1.2.1/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.browser:browser:1.8.0] /home/txm/.gradle/caches/8.10.2/transforms/308a2e77faa557d0bd706972416bde6a/transformed/browser-1.8.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.recyclerview:recyclerview:1.0.0] /home/txm/.gradle/caches/8.10.2/transforms/75e1bcd7a8b61b1e132d50e7766bfd37/transformed/recyclerview-1.0.0/AndroidManifest.xml:17:1-22:12
@@ -104,94 +104,94 @@ MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/txm/.gradl
 MERGED from [org.microg:safe-parcel:1.7.0] /home/txm/.gradle/caches/8.10.2/transforms/e8e12b6829d4101dc434d765546d66c9/transformed/jetified-safe-parcel-1.7.0/AndroidManifest.xml:6:1-14:12
 MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] /home/txm/.gradle/caches/8.10.2/transforms/9e1412f82216e9a99f9f845f4567c1f2/transformed/jetified-relinker-1.4.5/AndroidManifest.xml:2:1-7:12
 	package
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:2:5-32
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:2:5-32
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 	android:versionName
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 	android:versionCode
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 	xmlns:android
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:1:11-69
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:1:11-69
 uses-permission#android.permission.BLUETOOTH
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:5:3-65
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:5:3-65
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:5:20-63
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:5:20-63
 uses-permission#android.permission.BLUETOOTH_ADMIN
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:6:3-71
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:6:3-71
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:6:20-69
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:6:20-69
 uses-permission#android.permission.BLUETOOTH_SCAN
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:7:3-70
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:7:3-70
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:7:20-68
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:7:20-68
 uses-permission#android.permission.BLUETOOTH_CONNECT
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:8:3-73
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:8:3-73
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:8:20-71
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:8:20-71
 uses-permission#android.permission.ACCESS_FINE_LOCATION
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:9:3-76
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:9:3-76
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:9:20-74
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:9:20-74
 uses-permission#android.permission.ACCESS_COARSE_LOCATION
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:10:3-78
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:10:3-78
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:10:20-76
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:10:20-76
 uses-feature#android.hardware.bluetooth
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:3-84
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:3-84
 	android:required
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:59-82
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:59-82
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:17-58
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:17-58
 uses-feature#android.hardware.bluetooth_le
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:3-87
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:3-87
 	android:required
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:62-85
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:62-85
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:17-61
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:17-61
 uses-permission#android.permission.BLUETOOTH_ADVERTISE
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:17:5-18:58
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:17:5-18:58
 	android:usesPermissionFlags
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:18:9-55
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:18:9-55
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:17:22-75
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:17:22-75
 uses-permission#android.permission.INTERNET
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
-MERGED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
-MERGED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
+MERGED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
+MERGED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:22-64
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:22-64
 queries
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:60:5-65:15
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:60:5-65:15
 intent#action:name:android.intent.action.PROCESS_TEXT+data:mimeType:text/plain
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:61:9-64:18
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:61:9-64:18
 action#android.intent.action.PROCESS_TEXT
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:62:13-72
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:62:13-72
 	android:name
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:62:21-70
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:62:21-70
 data
-ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:63:13-50
+ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:63:13-50
 	android:mimeType
-		ADDED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:63:19-48
+		ADDED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:63:19-48
 uses-sdk
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
-INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
-MERGED from [:shared_preferences_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:shared_preferences_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
+INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
+MERGED from [:shared_preferences_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:shared_preferences_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [com.google.android.gms:play-services-location:21.2.0] /home/txm/.gradle/caches/8.10.2/transforms/cc3336a24e8ef5d3d66fff7f5ca80854/transformed/jetified-play-services-location-21.2.0/AndroidManifest.xml:5:5-44
 MERGED from [com.google.android.gms:play-services-location:21.2.0] /home/txm/.gradle/caches/8.10.2/transforms/cc3336a24e8ef5d3d66fff7f5ca80854/transformed/jetified-play-services-location-21.2.0/AndroidManifest.xml:5:5-44
-MERGED from [:app_links] /home/txm/Desktop/Flutter Projects/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:app_links] /home/txm/Desktop/Flutter Projects/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:5-44
-MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:5-44
-MERGED from [:path_provider_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:path_provider_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:permission_handler_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:permission_handler_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
-MERGED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:app_links] /home/txm/Desktop/PROJECT Pull/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:app_links] /home/txm/Desktop/PROJECT Pull/ev2ev/build/app_links/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:5-44
+MERGED from [:flutter_blue_plus_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/flutter_blue_plus_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:5-44
+MERGED from [:path_provider_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:path_provider_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:permission_handler_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:permission_handler_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [androidx.preference:preference:1.2.1] /home/txm/.gradle/caches/8.10.2/transforms/0098a6e93522fecc805d8900172003dc/transformed/preference-1.2.1/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.preference:preference:1.2.1] /home/txm/.gradle/caches/8.10.2/transforms/0098a6e93522fecc805d8900172003dc/transformed/preference-1.2.1/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.browser:browser:1.8.0] /home/txm/.gradle/caches/8.10.2/transforms/308a2e77faa557d0bd706972416bde6a/transformed/browser-1.8.0/AndroidManifest.xml:5:5-44
@@ -307,27 +307,27 @@ MERGED from [org.microg:safe-parcel:1.7.0] /home/txm/.gradle/caches/8.10.2/trans
 MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] /home/txm/.gradle/caches/8.10.2/transforms/9e1412f82216e9a99f9f845f4567c1f2/transformed/jetified-relinker-1.4.5/AndroidManifest.xml:5:5-43
 MERGED from [com.getkeepsafe.relinker:relinker:1.4.5] /home/txm/.gradle/caches/8.10.2/transforms/9e1412f82216e9a99f9f845f4567c1f2/transformed/jetified-relinker-1.4.5/AndroidManifest.xml:5:5-43
 	android:targetSdkVersion
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from /home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/debug/AndroidManifest.xml
+		INJECTED from /home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/debug/AndroidManifest.xml
 service#com.baseflow.geolocator.GeolocatorLocationService
-ADDED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-12:56
+ADDED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-12:56
 	android:enabled
-		ADDED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-35
+		ADDED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-35
 	android:exported
-		ADDED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-37
+		ADDED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-37
 	android:foregroundServiceType
-		ADDED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:13-53
+		ADDED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:13-53
 	android:name
-		ADDED from [:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-77
+		ADDED from [:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-77
 activity#io.flutter.plugins.urllauncher.WebViewActivity
-ADDED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-11:74
+ADDED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-11:74
 	android:exported
-		ADDED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-37
+		ADDED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-37
 	android:theme
-		ADDED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-71
+		ADDED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-71
 	android:name
-		ADDED from [:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-74
+		ADDED from [:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-74
 uses-library#androidx.window.extensions
 ADDED from [androidx.window:window:1.2.0] /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/AndroidManifest.xml:23:9-25:40
 	android:required

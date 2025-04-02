@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/vehicle_settings.dart';
 import '../providers/bluetooth_provider.dart';
+import '../models/vehicle_settings.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -15,6 +15,8 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
   late AnimationController _batteryController;
   late AnimationController _tempController;
   late AnimationController _chargeController;
+  BluetoothProvider? _bluetoothProvider;
+  String _currentProfile = 'car'; // Default fallback value
 
   @override
   void initState() {
@@ -36,16 +38,59 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newProvider = Provider.of<BluetoothProvider>(context, listen: false);
+    if (_bluetoothProvider != newProvider) {
+      _bluetoothProvider?.removeListener(_updateOnNewData);
+      newProvider.addListener(_updateOnNewData);
+      _bluetoothProvider = newProvider;
+      _updateOnNewData(); // Initialize with current values
+    }
+  }
+
+  @override
   void dispose() {
+    _bluetoothProvider?.removeListener(_updateOnNewData);
     _batteryController.dispose();
     _tempController.dispose();
     _chargeController.dispose();
+    _bluetoothProvider = null;
     super.dispose();
   }
 
-  Widget _buildVehicleIcon(String type) {
+  void _updateOnNewData() {
+    if (!mounted) return;
+    try {
+      final bluetoothData = _bluetoothProvider?.deviceData ?? {
+        'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0, 'profile': 'car'
+      };
+      
+      // Update profile from BLE data
+      if (bluetoothData.containsKey('profile')) {
+        final profile = bluetoothData['profile'].toString().toLowerCase();
+        if (profile.contains('car')) {
+          _currentProfile = 'car';
+        } else if (profile.contains('bike')) {
+          _currentProfile = 'ebike';
+        } else if (profile.contains('scooter')) {
+          _currentProfile = 'scooter';
+        } else if (profile.contains('charger') || profile.contains('station')) {
+          _currentProfile = 'charger';
+        }
+      }
+
+      _batteryController.animateTo(bluetoothData['bl'] / 100);
+      _tempController.animateTo(bluetoothData['T'] / 100);
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Error updating dashboard: $e');
+    }
+  }
+
+  Widget _buildVehicleIcon(String profile) {
     final IconData icon;
-    switch (type.toLowerCase()) {
+    switch (profile) {
       case 'car':
         icon = Icons.directions_car;
         break;
@@ -55,6 +100,9 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
       case 'scooter':
         icon = Icons.electric_scooter;
         break;
+      case 'charger':
+        icon = Icons.ev_station;
+        break;
       default:
         icon = Icons.electric_car;
     }
@@ -62,20 +110,33 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(),
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
       child: Icon(
         icon,
         size: 150,
-        color: Theme.of(context).colorScheme.primary,
+        color: _getIconColor(profile),
       ),
     );
   }
 
-  Widget _buildBatteryGauge(double level) {
-    _batteryController.animateTo(level / 100);
-    
+  Color _getIconColor(String profile) {
+    switch (profile) {
+      case 'car':
+        return Colors.blue;
+      case 'ebike':
+        return Colors.green;
+      case 'scooter':
+        return Colors.orange;
+      case 'charger':
+        return Colors.red;
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
+
+  Widget _buildBatteryGauge(double level, bool isCharging) {
     return AnimatedBuilder(
       animation: _batteryController,
       builder: (context, child) {
@@ -83,7 +144,7 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
           size: const Size(150, 150),
           painter: BatteryGaugePainter(
             value: _batteryController.value,
-            isCharging: context.read<BluetoothProvider>().deviceData['I'] > 0,
+            isCharging: isCharging,
           ),
         );
       },
@@ -91,8 +152,6 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
   }
 
   Widget _buildTempGauge(double temp) {
-    _tempController.animateTo(temp / 100);
-    
     return AnimatedBuilder(
       animation: _tempController,
       builder: (context, child) {
@@ -104,19 +163,28 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
     );
   }
 
+  Widget _buildDataTile(String title, String value, IconData icon) {
+    return Card(
+      elevation: 4,
+      child: ListTile(
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(title, style: const TextStyle(fontSize: 16)),
+        subtitle: Text(value, 
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final vehicleSettings = context.watch<VehicleSettings?>();
-    final bluetoothData = context.watch<BluetoothProvider>().deviceData;
-    final isCharging = bluetoothData['I'] > 0;
-
-    if (vehicleSettings == null) {
-      return const Center(child: Text('Configure vehicle in settings'));
-    }
+    final bluetoothData = _bluetoothProvider?.deviceData ?? {
+      'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0, 'profile': 'car'
+    };
+    final isCharging = bluetoothData['I'] < 0;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(vehicleSettings.name),
+        title: Text(bluetoothData['profile']?.toString() ?? 'Vehicle Dashboard'),
         actions: [
           AnimatedBuilder(
             animation: _chargeController,
@@ -124,7 +192,7 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
               return Icon(
                 Icons.bolt,
                 color: isCharging 
-                  ? Colors.amber.withValues()
+                  ? Colors.amber.withOpacity(_chargeController.value)
                   : Colors.grey,
               );
             },
@@ -146,16 +214,16 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
         child: Column(
           children: [
             const SizedBox(height: 20),
-            _buildVehicleIcon(vehicleSettings.type),
+            _buildVehicleIcon(_currentProfile),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Column(
                   children: [
-                    _buildBatteryGauge(bluetoothData['bl']),
+                    _buildBatteryGauge(bluetoothData['bl'], isCharging),
                     const SizedBox(height: 8),
-                    Text('${bluetoothData['bl']}%',
+                    Text('${bluetoothData['bl'].toStringAsFixed(1)}%',
                       style: const TextStyle(fontSize: 24)),
                   ],
                 ),
@@ -163,7 +231,7 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
                   children: [
                     _buildTempGauge(bluetoothData['T']),
                     const SizedBox(height: 8),
-                    Text('${bluetoothData['T']}°C',
+                    Text('${bluetoothData['T'].toStringAsFixed(1)}°C',
                       style: const TextStyle(fontSize: 24)),
                   ],
                 ),
@@ -176,26 +244,14 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
               childAspectRatio: 2.5,
               padding: const EdgeInsets.all(16),
               children: [
-                _buildDataTile('Voltage', '${bluetoothData['v']} V', Icons.bolt),
-                _buildDataTile('Current', '${bluetoothData['I']} A', Icons.electric_bolt),
-                _buildDataTile('Power', '${(bluetoothData['v'] * bluetoothData['I']).toStringAsFixed(1)} W', Icons.power),
-                _buildDataTile('Range', '${(bluetoothData['bl'] * 2.5).toStringAsFixed(1)} km', Icons.speed),
+                _buildDataTile('Voltage', '${bluetoothData['v'].toStringAsFixed(1)} V', Icons.bolt),
+                _buildDataTile('Current', '${bluetoothData['I'].toStringAsFixed(1)} A', Icons.electric_bolt),
+                _buildDataTile('Power', '${bluetoothData['P'].toStringAsFixed(1)} W', Icons.power),
+                _buildDataTile('Range', '${bluetoothData['range'].toStringAsFixed(1)} km', Icons.speed),
               ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDataTile(String title, String value, IconData icon) {
-    return Card(
-      elevation: 4,
-      child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title, style: const TextStyle(fontSize: 16)),
-        subtitle: Text(value, 
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -212,7 +268,7 @@ class BatteryGaugePainter extends CustomPainter {
     final center = Offset(size.width/2, size.height/2);
     final radius = size.width/2;
     final paint = Paint()
-      ..color = const Color.fromRGBO(128, 128, 128, 0.2)  // Replaced withOpacity
+      ..color = const Color.fromRGBO(128, 128, 128, 0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12;
 

@@ -13,45 +13,45 @@
 13         to allow setting breakpoints, to provide hot reload, etc.
 14    -->
 15    <uses-permission android:name="android.permission.INTERNET" />
-15-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
-15-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:21:22-64
+15-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:5-67
+15-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:21:22-64
 16    <!-- Add these permissions -->
 17    <uses-permission android:name="android.permission.BLUETOOTH" />
-17-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:5:3-65
-17-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:5:20-63
+17-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:5:3-65
+17-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:5:20-63
 18    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-18-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:6:3-71
-18-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:6:20-69
+18-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:6:3-71
+18-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:6:20-69
 19    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-19-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:7:3-70
-19-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:7:20-68
+19-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:7:3-70
+19-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:7:20-68
 20    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-20-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:8:3-73
-20-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:8:20-71
+20-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:8:3-73
+20-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:8:20-71
 21    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-21-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:9:3-76
-21-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:9:20-74
+21-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:9:3-76
+21-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:9:20-74
 22    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Add this if targeting Android 12+ -->
-22-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:10:3-78
-22-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:10:20-76
+22-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:10:3-78
+22-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:10:20-76
 23    <uses-feature
-23-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:3-84
+23-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:3-84
 24        android:name="android.hardware.bluetooth"
-24-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:17-58
+24-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:17-58
 25        android:required="true" />
-25-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:13:59-82
+25-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:13:59-82
 26    <uses-feature
-26-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:3-87
+26-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:3-87
 27        android:name="android.hardware.bluetooth_le"
-27-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:17-61
+27-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:17-61
 28        android:required="true" /> <!-- For Android 12+ -->
-28-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:14:62-85
+28-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:14:62-85
 29    <uses-permission
-29-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:17:5-18:58
+29-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:17:5-18:58
 30        android:name="android.permission.BLUETOOTH_ADVERTISE"
-30-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:17:22-75
+30-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:17:22-75
 31        android:usesPermissionFlags="neverForLocation" />
-31-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:18:9-55
+31-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:18:9-55
 32    <!--
 33 Required to query activities that can process text, see:
 34         https://developer.android.com/training/package-visibility and
@@ -60,16 +60,16 @@
 37         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
 38    -->
 39    <queries>
-39-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:60:5-65:15
+39-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:60:5-65:15
 40        <intent>
-40-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:61:9-64:18
+40-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:61:9-64:18
 41            <action android:name="android.intent.action.PROCESS_TEXT" />
-41-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:62:13-72
-41-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:62:21-70
+41-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:62:13-72
+41-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:62:21-70
 42
 43            <data android:mimeType="text/plain" />
-43-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:63:13-50
-43-->/home/txm/Desktop/Flutter Projects/ev2ev/android/app/src/main/AndroidManifest.xml:63:19-48
+43-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:63:13-50
+43-->/home/txm/Desktop/PROJECT Pull/ev2ev/android/app/src/main/AndroidManifest.xml:63:19-48
 44        </intent>
 45    </queries>
 46
@@ -127,24 +127,24 @@
 92            android:value="2" />
 93
 94        <service
-94-->[:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-12:56
+94-->[:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-12:56
 95            android:name="com.baseflow.geolocator.GeolocatorLocationService"
-95-->[:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-77
+95-->[:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-77
 96            android:enabled="true"
-96-->[:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-35
+96-->[:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-35
 97            android:exported="false"
-97-->[:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-37
+97-->[:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-37
 98            android:foregroundServiceType="location" />
-98-->[:geolocator_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:13-53
+98-->[:geolocator_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:13-53
 99
 100        <activity
-100-->[:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-11:74
+100-->[:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-11:74
 101            android:name="io.flutter.plugins.urllauncher.WebViewActivity"
-101-->[:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-74
+101-->[:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-74
 102            android:exported="false"
-102-->[:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-37
+102-->[:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-37
 103            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
-103-->[:url_launcher_android] /home/txm/Desktop/Flutter Projects/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-71
+103-->[:url_launcher_android] /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-71
 104
 105        <uses-library
 105-->[androidx.window:window:1.2.0] /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/AndroidManifest.xml:23:9-25:40
