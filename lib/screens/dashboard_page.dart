@@ -1,8 +1,6 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/bluetooth_provider.dart';
-import '../models/vehicle_settings.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -11,31 +9,9 @@ class DashboardPage extends StatefulWidget {
   DashboardPageState createState() => DashboardPageState();
 }
 
-class DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
-  late AnimationController _batteryController;
-  late AnimationController _tempController;
-  late AnimationController _chargeController;
+class DashboardPageState extends State<DashboardPage> {
   BluetoothProvider? _bluetoothProvider;
-  String _currentProfile = 'car'; // Default fallback value
-
-  @override
-  void initState() {
-    super.initState();
-    _batteryController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _tempController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _chargeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-      lowerBound: 0.5,
-      upperBound: 1.0,
-    )..repeat(reverse: true);
-  }
+  final String userName = "Alex"; // Replace with dynamic user name
 
   @override
   void didChangeDependencies() {
@@ -45,328 +21,337 @@ class DashboardPageState extends State<DashboardPage> with TickerProviderStateMi
       _bluetoothProvider?.removeListener(_updateOnNewData);
       newProvider.addListener(_updateOnNewData);
       _bluetoothProvider = newProvider;
-      _updateOnNewData(); // Initialize with current values
     }
   }
 
   @override
   void dispose() {
     _bluetoothProvider?.removeListener(_updateOnNewData);
-    _batteryController.dispose();
-    _tempController.dispose();
-    _chargeController.dispose();
-    _bluetoothProvider = null;
     super.dispose();
   }
 
   void _updateOnNewData() {
-    if (!mounted) return;
-    try {
-      final bluetoothData = _bluetoothProvider?.deviceData ?? {
-        'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0, 'profile': 'car'
-      };
-      
-      // Update profile from BLE data
-      if (bluetoothData.containsKey('profile')) {
-        final profile = bluetoothData['profile'].toString().toLowerCase();
-        if (profile.contains('car')) {
-          _currentProfile = 'car';
-        } else if (profile.contains('bike')) {
-          _currentProfile = 'ebike';
-        } else if (profile.contains('scooter')) {
-          _currentProfile = 'scooter';
-        } else if (profile.contains('charger') || profile.contains('station')) {
-          _currentProfile = 'charger';
-        }
-      }
-
-      _batteryController.animateTo(bluetoothData['bl'] / 100);
-      _tempController.animateTo(bluetoothData['T'] / 100);
-      if (mounted) setState(() {});
-    } catch (e) {
-      debugPrint('Error updating dashboard: $e');
-    }
+    if (mounted) setState(() {});
   }
 
-  Widget _buildVehicleIcon(String profile) {
-    final IconData icon;
-    switch (profile) {
-      case 'car':
-        icon = Icons.directions_car;
-        break;
-      case 'ebike':
-        icon = Icons.electric_bike;
-        break;
-      case 'scooter':
-        icon = Icons.electric_scooter;
-        break;
-      case 'charger':
-        icon = Icons.ev_station;
-        break;
-      default:
-        icon = Icons.electric_car;
+  Widget _buildUserGreeting() {
+    final hour = DateTime.now().hour;
+    String greeting;
+    
+    if (hour < 12) {
+      greeting = 'Good Morning';
+    } else if (hour < 17) {
+      greeting = 'Good Afternoon';
+    } else {
+      greeting = 'Good Evening';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        icon,
-        size: 150,
-        color: _getIconColor(profile),
-      ),
-    );
-  }
-
-  Color _getIconColor(String profile) {
-    switch (profile) {
-      case 'car':
-        return Colors.blue;
-      case 'ebike':
-        return Colors.green;
-      case 'scooter':
-        return Colors.orange;
-      case 'charger':
-        return Colors.red;
-      default:
-        return Theme.of(context).colorScheme.primary;
-    }
-  }
-
-  Widget _buildBatteryGauge(double level, bool isCharging) {
-    return AnimatedBuilder(
-      animation: _batteryController,
-      builder: (context, child) {
-        return CustomPaint(
-          size: const Size(150, 150),
-          painter: BatteryGaugePainter(
-            value: _batteryController.value,
-            isCharging: isCharging,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$greeting,',
+            style: const TextStyle(
+              fontSize: 20,
+              color: Colors.grey,
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTempGauge(double temp) {
-    return AnimatedBuilder(
-      animation: _tempController,
-      builder: (context, child) {
-        return CustomPaint(
-          size: const Size(150, 150),
-          painter: TempGaugePainter(_tempController.value),
-        );
-      },
-    );
-  }
-
-  Widget _buildDataTile(String title, String value, IconData icon) {
-    return Card(
-      elevation: 4,
-      child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title, style: const TextStyle(fontSize: 16)),
-        subtitle: Text(value, 
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bluetoothData = _bluetoothProvider?.deviceData ?? {
-      'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0, 'profile': 'car'
-    };
-    final isCharging = bluetoothData['I'] < 0;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(bluetoothData['profile']?.toString() ?? 'Vehicle Dashboard'),
-        actions: [
-          AnimatedBuilder(
-            animation: _chargeController,
-            builder: (context, child) {
-              return Icon(
-                Icons.bolt,
-                color: isCharging 
-                  ? Colors.amber.withOpacity(_chargeController.value)
-                  : Colors.grey,
-              );
-            },
+          Text(
+            userName,
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
           ),
-          const SizedBox(width: 16),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).colorScheme.primaryContainer,
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
+    );
+  }
+
+  Widget _buildCombinedStatusMetricsCard(Map<String, dynamic> data) {
+    final isCharging = data['I'] < 0;
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            _buildVehicleIcon(_currentProfile),
-            const SizedBox(height: 24),
+            // Status Section
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'ALL GOOD',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                Text(
+                  'Updated ${DateTime.now().toString().split(' ')[1].substring(0, 5)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildBatteryGauge(bluetoothData['bl'], isCharging),
-                    const SizedBox(height: 8),
-                    Text('${bluetoothData['bl'].toStringAsFixed(1)}%',
-                      style: const TextStyle(fontSize: 24)),
+                    const Text(
+                      'State of Charge',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      '${data['bl']?.toStringAsFixed(0) ?? '0'}%',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _buildTempGauge(bluetoothData['T']),
-                    const SizedBox(height: 8),
-                    Text('${bluetoothData['T'].toStringAsFixed(1)}°C',
-                      style: const TextStyle(fontSize: 24)),
+                    const Text(
+                      'Range',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      '${data['range']?.toStringAsFixed(0) ?? '0'} km',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              childAspectRatio: 2.5,
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildDataTile('Voltage', '${bluetoothData['v'].toStringAsFixed(1)} V', Icons.bolt),
-                _buildDataTile('Current', '${bluetoothData['I'].toStringAsFixed(1)} A', Icons.electric_bolt),
-                _buildDataTile('Power', '${bluetoothData['P'].toStringAsFixed(1)} W', Icons.power),
-                _buildDataTile('Range', '${bluetoothData['range'].toStringAsFixed(1)} km', Icons.speed),
-              ],
+            const Divider(height: 40, thickness: 1),
+            
+            // Metrics Section
+            const Text('Performance Metrics',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueGrey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 180,
+              child: GridView.count(
+                crossAxisCount: 2,
+                childAspectRatio: 2.5,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildMetricTile('Voltage', '${data['v']?.toStringAsFixed(1) ?? '0.0'} V', Icons.bolt),
+                  _buildMetricTile('Current', '${data['I']?.toStringAsFixed(1) ?? '0.0'} A', Icons.electric_bolt),
+                  _buildMetricTile('Power', '${data['P']?.toStringAsFixed(1) ?? '0.0'} W', Icons.power),
+                  _buildMetricTile('Temperature', '${data['T']?.toStringAsFixed(1) ?? '0.0'}°C', Icons.thermostat),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class BatteryGaugePainter extends CustomPainter {
-  final double value;
-  final bool isCharging;
-
-  const BatteryGaugePainter({required this.value, required this.isCharging});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width/2, size.height/2);
-    final radius = size.width/2;
-    final paint = Paint()
-      ..color = const Color.fromRGBO(128, 128, 128, 0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12;
-
-    canvas.drawCircle(center, radius - 6, paint);
-
-    final sweepAngle = 2 * pi * value;
-    paint
-      ..shader = LinearGradient(
-        colors: [
-          isCharging ? Colors.amber : Colors.red,
-          isCharging ? Colors.lightGreen : Colors.green,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 6),
-      -pi/2,
-      sweepAngle,
-      false,
-      paint,
-    );
-
-    final icon = isCharging ? Icons.bolt : Icons.battery_full;
-    TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(icon.codePoint),
-        style: TextStyle(
-          fontSize: 40,
-          fontFamily: icon.fontFamily,
-          color: isCharging ? Colors.amber : Colors.white,
+  Widget _buildGaugesCard(double temperature, double batteryLevel, bool isCharging) {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          height: 180,
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildTemperatureSection(temperature),
+              ),
+              Container(
+                width: 1,
+                height: 100,
+                color: Colors.grey[300],
+                margin: const EdgeInsets.symmetric(vertical: 20),
+              ),
+              Expanded(
+                child: _buildBatterySection(batteryLevel, isCharging),
+              ),
+            ],
+          ),
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout()
-     ..paint(canvas, Offset(center.dx - 20, center.dy - 20));
+    );
+  }
+
+  Widget _buildTemperatureSection(double temperature) {
+    final color = _getTemperatureColor(temperature);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.thermostat, size: 50, color: color),
+        const SizedBox(height: 8),
+        Text('${temperature.toStringAsFixed(1)}°C',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const Text('Temperature', 
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBatterySection(double level, bool isCharging) {
+    final color = _getBatteryColor(level);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildBatteryIndicator(level, color, isCharging),
+        const SizedBox(height: 8),
+        Text('${level.toStringAsFixed(1)}%',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const Text('Battery', 
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricTile(String title, String value, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.blue[800], size: 28),
+      title: Text(value, 
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(title,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBatteryIndicator(double level, Color color, bool isCharging) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 60,
+          height: 100,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: level / 100 * 96,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
+              ),
+            ),
+          ),
+        ),
+        if (isCharging)
+          const Icon(Icons.bolt, color: Colors.white, size: 30),
+        Positioned(
+          right: -10,
+          top: 25,
+          child: Container(
+            width: 8,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.grey,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getTemperatureColor(double temp) {
+    if (temp < 15) return Colors.blue;
+    if (temp < 30) return Colors.green;
+    if (temp < 40) return Colors.orange;
+    return Colors.red;
+  }
+
+  Color _getBatteryColor(double level) {
+    if (level < 20) return Colors.red;
+    if (level < 50) return Colors.orange;
+    return Colors.green;
   }
 
   @override
-  bool shouldRepaint(covariant BatteryGaugePainter oldDelegate) =>
-      value != oldDelegate.value || isCharging != oldDelegate.isCharging;
-}
+  Widget build(BuildContext context) {
+    final bluetoothData = _bluetoothProvider?.deviceData ?? {
+      'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0
+    };
+    final isCharging = bluetoothData['I'] < 0;
 
-class TempGaugePainter extends CustomPainter {
-  final double value;
-
-  const TempGaugePainter(this.value);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width/2, size.height/2);
-    final radius = size.width/2;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12;
-
-    const colors = [Colors.blue, Colors.green, Colors.orange, Colors.red];
-    const stops = [0.0, 0.3, 0.6, 1.0];
-    paint.shader = const SweepGradient(
-      colors: colors,
-      stops: stops,
-      startAngle: -pi/2,
-      endAngle: 3 * pi/2,
-    ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 6),
-      -pi/2,
-      pi,
-      false,
-      paint,
-    );
-
-    final needlePaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 4;
-    final angle = -pi/2 + pi * value;
-    final needleEnd = Offset(
-      center.dx + radius * 0.8 * cos(angle),
-      center.dy + radius * 0.8 * sin(angle),
-    );
-    canvas.drawLine(center, needleEnd, needlePaint);
-
-    TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(Icons.thermostat.codePoint),
-        style: TextStyle(
-          fontSize: 40,
-          fontFamily: Icons.thermostat.fontFamily,
-          color: Colors.white,
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildUserGreeting(),
+              _buildCombinedStatusMetricsCard(bluetoothData),
+              _buildGaugesCard(bluetoothData['T'], bluetoothData['bl'], isCharging),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout()
-     ..paint(canvas, Offset(center.dx - 20, center.dy - 20));
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant TempGaugePainter oldDelegate) => 
-      value != oldDelegate.value;
 }

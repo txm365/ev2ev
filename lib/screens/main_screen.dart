@@ -2,24 +2,22 @@ import 'package:flutter/material.dart';
 import 'dashboard_page.dart';
 import 'bluetooth_scan_page.dart';
 import 'transaction_page.dart';
-import 'settings_page.dart';
 import 'profile_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  MainScreenState createState() => MainScreenState(); // Made public
+  MainScreenState createState() => MainScreenState();
 }
 
-class MainScreenState extends State<MainScreen> { // Removed underscore
+class MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   static final List<Widget> _pages = [
     const DashboardPage(),
     const BluetoothScanPage(),
     const TransactionPage(),
-    const SettingsPage(),
     const ProfilePage(),
   ];
 
@@ -47,10 +45,6 @@ class MainScreenState extends State<MainScreen> { // Removed underscore
           BottomNavigationBarItem(
             icon: Icon(Icons.swap_horiz),
             label: 'Transactions',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

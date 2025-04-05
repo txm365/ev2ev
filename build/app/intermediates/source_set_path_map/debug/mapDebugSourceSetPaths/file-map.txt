@@ -7,27 +7,27 @@ com.example.ev2ev.app-jetified-fragment-ktx-1.7.1-5 /home/txm/.gradle/caches/8.1
 com.example.ev2ev.app-browser-1.8.0-6 /home/txm/.gradle/caches/8.10.2/transforms/308a2e77faa557d0bd706972416bde6a/transformed/browser-1.8.0/res
 com.example.ev2ev.app-jetified-appcompat-resources-1.1.0-7 /home/txm/.gradle/caches/8.10.2/transforms/30b0283ed69cc5a036226586199afb07/transformed/jetified-appcompat-resources-1.1.0/res
 com.example.ev2ev.app-appcompat-1.1.0-8 /home/txm/.gradle/caches/8.10.2/transforms/3a4dcd3e8c92efa77cfa193b658940d9/transformed/appcompat-1.1.0/res
-com.example.ev2ev.app-transition-1.4.1-9 /home/txm/.gradle/caches/8.10.2/transforms/45af1ebc35cbf9d2d2886a132166b73a/transformed/transition-1.4.1/res
-com.example.ev2ev.app-jetified-core-1.0.0-10 /home/txm/.gradle/caches/8.10.2/transforms/47506b70b93177473c53f4d5d7e77c91/transformed/jetified-core-1.0.0/res
-com.example.ev2ev.app-jetified-window-1.2.0-11 /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/res
-com.example.ev2ev.app-fragment-1.7.1-12 /home/txm/.gradle/caches/8.10.2/transforms/55520e4df2220e27f13f0bbb7467d11a/transformed/fragment-1.7.1/res
-com.example.ev2ev.app-coordinatorlayout-1.0.0-13 /home/txm/.gradle/caches/8.10.2/transforms/58a0920e123e93dd6aa702d27ab7530e/transformed/coordinatorlayout-1.0.0/res
-com.example.ev2ev.app-jetified-activity-ktx-1.8.1-14 /home/txm/.gradle/caches/8.10.2/transforms/594d81b2ca4ffa5071fc50a56b570e77/transformed/jetified-activity-ktx-1.8.1/res
-com.example.ev2ev.app-jetified-profileinstaller-1.3.1-15 /home/txm/.gradle/caches/8.10.2/transforms/5f7dcf6815bacc3ae7f099ba801348de/transformed/jetified-profileinstaller-1.3.1/res
-com.example.ev2ev.app-jetified-core-ktx-1.13.1-16 /home/txm/.gradle/caches/8.10.2/transforms/6ec70d4eb0351866340efe37c2014fef/transformed/jetified-core-ktx-1.13.1/res
-com.example.ev2ev.app-slidingpanelayout-1.2.0-17 /home/txm/.gradle/caches/8.10.2/transforms/74ed8ceaa55f9ae57c7b49acd30346c2/transformed/slidingpanelayout-1.2.0/res
-com.example.ev2ev.app-recyclerview-1.0.0-18 /home/txm/.gradle/caches/8.10.2/transforms/75e1bcd7a8b61b1e132d50e7766bfd37/transformed/recyclerview-1.0.0/res
-com.example.ev2ev.app-core-1.13.1-19 /home/txm/.gradle/caches/8.10.2/transforms/8cf478dec41eed746328fa8046755ba2/transformed/core-1.13.1/res
-com.example.ev2ev.app-jetified-play-services-base-18.3.0-20 /home/txm/.gradle/caches/8.10.2/transforms/9db9b81a577112600e8d2ee7b5450923/transformed/jetified-play-services-base-18.3.0/res
-com.example.ev2ev.app-jetified-lifecycle-viewmodel-ktx-2.7.0-21 /home/txm/.gradle/caches/8.10.2/transforms/a1682fe25d19efcf6ed57ec9bfdc01f5/transformed/jetified-lifecycle-viewmodel-ktx-2.7.0/res
-com.example.ev2ev.app-jetified-play-services-basement-18.3.0-22 /home/txm/.gradle/caches/8.10.2/transforms/abeed4f47a72eff8f5b4e9bf7f2f3c91/transformed/jetified-play-services-basement-18.3.0/res
-com.example.ev2ev.app-jetified-savedstate-1.2.1-23 /home/txm/.gradle/caches/8.10.2/transforms/b3d51a44ab6b56289d4858158a1ad6dd/transformed/jetified-savedstate-1.2.1/res
-com.example.ev2ev.app-lifecycle-runtime-2.7.0-24 /home/txm/.gradle/caches/8.10.2/transforms/c092edbccc16347970ed4f22e8da111a/transformed/lifecycle-runtime-2.7.0/res
-com.example.ev2ev.app-jetified-window-java-1.2.0-25 /home/txm/.gradle/caches/8.10.2/transforms/c1f85211ae6978d0218d51595a7f7e62/transformed/jetified-window-java-1.2.0/res
-com.example.ev2ev.app-jetified-lifecycle-viewmodel-savedstate-2.7.0-26 /home/txm/.gradle/caches/8.10.2/transforms/c7156a54e8f0502a1f8f57797d8b3e6e/transformed/jetified-lifecycle-viewmodel-savedstate-2.7.0/res
-com.example.ev2ev.app-jetified-datastore-preferences-release-27 /home/txm/.gradle/caches/8.10.2/transforms/d0a351c7f5284a2196f3216de8771741/transformed/jetified-datastore-preferences-release/res
-com.example.ev2ev.app-jetified-startup-runtime-1.1.1-28 /home/txm/.gradle/caches/8.10.2/transforms/e0d9d3675465ff69d847e2f781f20c61/transformed/jetified-startup-runtime-1.1.1/res
-com.example.ev2ev.app-lifecycle-livedata-2.7.0-29 /home/txm/.gradle/caches/8.10.2/transforms/e0eede8414d1ee0e5f236daeb1a2e59a/transformed/lifecycle-livedata-2.7.0/res
+com.example.ev2ev.app-jetified-play-services-auth-21.0.0-9 /home/txm/.gradle/caches/8.10.2/transforms/41fd65a6a815b5614b87b654f9cfd65e/transformed/jetified-play-services-auth-21.0.0/res
+com.example.ev2ev.app-transition-1.4.1-10 /home/txm/.gradle/caches/8.10.2/transforms/45af1ebc35cbf9d2d2886a132166b73a/transformed/transition-1.4.1/res
+com.example.ev2ev.app-jetified-core-1.0.0-11 /home/txm/.gradle/caches/8.10.2/transforms/47506b70b93177473c53f4d5d7e77c91/transformed/jetified-core-1.0.0/res
+com.example.ev2ev.app-jetified-window-1.2.0-12 /home/txm/.gradle/caches/8.10.2/transforms/5093ab42d2307deb2d7ac0b7f5718c38/transformed/jetified-window-1.2.0/res
+com.example.ev2ev.app-fragment-1.7.1-13 /home/txm/.gradle/caches/8.10.2/transforms/55520e4df2220e27f13f0bbb7467d11a/transformed/fragment-1.7.1/res
+com.example.ev2ev.app-coordinatorlayout-1.0.0-14 /home/txm/.gradle/caches/8.10.2/transforms/58a0920e123e93dd6aa702d27ab7530e/transformed/coordinatorlayout-1.0.0/res
+com.example.ev2ev.app-jetified-activity-ktx-1.8.1-15 /home/txm/.gradle/caches/8.10.2/transforms/594d81b2ca4ffa5071fc50a56b570e77/transformed/jetified-activity-ktx-1.8.1/res
+com.example.ev2ev.app-jetified-profileinstaller-1.3.1-16 /home/txm/.gradle/caches/8.10.2/transforms/5f7dcf6815bacc3ae7f099ba801348de/transformed/jetified-profileinstaller-1.3.1/res
+com.example.ev2ev.app-jetified-core-ktx-1.13.1-17 /home/txm/.gradle/caches/8.10.2/transforms/6ec70d4eb0351866340efe37c2014fef/transformed/jetified-core-ktx-1.13.1/res
+com.example.ev2ev.app-slidingpanelayout-1.2.0-18 /home/txm/.gradle/caches/8.10.2/transforms/74ed8ceaa55f9ae57c7b49acd30346c2/transformed/slidingpanelayout-1.2.0/res
+com.example.ev2ev.app-recyclerview-1.0.0-19 /home/txm/.gradle/caches/8.10.2/transforms/75e1bcd7a8b61b1e132d50e7766bfd37/transformed/recyclerview-1.0.0/res
+com.example.ev2ev.app-core-1.13.1-20 /home/txm/.gradle/caches/8.10.2/transforms/8cf478dec41eed746328fa8046755ba2/transformed/core-1.13.1/res
+com.example.ev2ev.app-jetified-play-services-base-18.3.0-21 /home/txm/.gradle/caches/8.10.2/transforms/9db9b81a577112600e8d2ee7b5450923/transformed/jetified-play-services-base-18.3.0/res
+com.example.ev2ev.app-jetified-lifecycle-viewmodel-ktx-2.7.0-22 /home/txm/.gradle/caches/8.10.2/transforms/a1682fe25d19efcf6ed57ec9bfdc01f5/transformed/jetified-lifecycle-viewmodel-ktx-2.7.0/res
+com.example.ev2ev.app-jetified-play-services-basement-18.3.0-23 /home/txm/.gradle/caches/8.10.2/transforms/abeed4f47a72eff8f5b4e9bf7f2f3c91/transformed/jetified-play-services-basement-18.3.0/res
+com.example.ev2ev.app-jetified-savedstate-1.2.1-24 /home/txm/.gradle/caches/8.10.2/transforms/b3d51a44ab6b56289d4858158a1ad6dd/transformed/jetified-savedstate-1.2.1/res
+com.example.ev2ev.app-lifecycle-runtime-2.7.0-25 /home/txm/.gradle/caches/8.10.2/transforms/c092edbccc16347970ed4f22e8da111a/transformed/lifecycle-runtime-2.7.0/res
+com.example.ev2ev.app-jetified-window-java-1.2.0-26 /home/txm/.gradle/caches/8.10.2/transforms/c1f85211ae6978d0218d51595a7f7e62/transformed/jetified-window-java-1.2.0/res
+com.example.ev2ev.app-jetified-lifecycle-viewmodel-savedstate-2.7.0-27 /home/txm/.gradle/caches/8.10.2/transforms/c7156a54e8f0502a1f8f57797d8b3e6e/transformed/jetified-lifecycle-viewmodel-savedstate-2.7.0/res
+com.example.ev2ev.app-jetified-datastore-preferences-release-28 /home/txm/.gradle/caches/8.10.2/transforms/d0a351c7f5284a2196f3216de8771741/transformed/jetified-datastore-preferences-release/res
+com.example.ev2ev.app-jetified-startup-runtime-1.1.1-29 /home/txm/.gradle/caches/8.10.2/transforms/e0d9d3675465ff69d847e2f781f20c61/transformed/jetified-startup-runtime-1.1.1/res
 com.example.ev2ev.app-lifecycle-livedata-core-2.7.0-30 /home/txm/.gradle/caches/8.10.2/transforms/e2e21678784b3eef6b33f576b1691a56/transformed/lifecycle-livedata-core-2.7.0/res
 com.example.ev2ev.app-jetified-lifecycle-process-2.7.0-31 /home/txm/.gradle/caches/8.10.2/transforms/e80aa748ff6540407d8dba61c0d945fe/transformed/jetified-lifecycle-process-2.7.0/res
 com.example.ev2ev.app-jetified-savedstate-ktx-1.2.1-32 /home/txm/.gradle/caches/8.10.2/transforms/ebca0abd79b4e189ce4efe6f41f957a4/transformed/jetified-savedstate-ktx-1.2.1/res
@@ -46,7 +46,8 @@ com.example.ev2ev.app-debug-44 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app/in
 com.example.ev2ev.app-debug-45 /home/txm/Desktop/PROJECT Pull/ev2ev/build/app_links/intermediates/packaged_res/debug/packageDebugResources
 com.example.ev2ev.app-debug-46 /home/txm/Desktop/PROJECT Pull/ev2ev/build/flutter_blue_plus_android/intermediates/packaged_res/debug/packageDebugResources
 com.example.ev2ev.app-debug-47 /home/txm/Desktop/PROJECT Pull/ev2ev/build/geolocator_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-48 /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-49 /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-50 /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/packaged_res/debug/packageDebugResources
-com.example.ev2ev.app-debug-51 /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-48 /home/txm/Desktop/PROJECT Pull/ev2ev/build/google_sign_in_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-49 /home/txm/Desktop/PROJECT Pull/ev2ev/build/path_provider_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-50 /home/txm/Desktop/PROJECT Pull/ev2ev/build/permission_handler_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-51 /home/txm/Desktop/PROJECT Pull/ev2ev/build/shared_preferences_android/intermediates/packaged_res/debug/packageDebugResources
+com.example.ev2ev.app-debug-52 /home/txm/Desktop/PROJECT Pull/ev2ev/build/url_launcher_android/intermediates/packaged_res/debug/packageDebugResources

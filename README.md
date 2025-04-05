@@ -2,8 +2,13 @@
 
 Vehicle to Vehicle Mobile Trading Application
 
+
+
 ## Getting Started
 
-The APP Has been largyly developped.
+
+##Implemented App Functions
+The APP Has been largely developped.
 1. Bluetooth Connection
 2. map Functionality
+3. Live dashboard updated from the bluettooth device

@@ -20,9 +20,13 @@ dependencies:
   permission_handler: ^11.4.0
   flutter_polyline_points: ^2.1.0
   intl: ^0.18.1
-  supabase_flutter: ^2.3.0
   vector_math: ^2.1.4 # For animation transformations
   flutter_svg: ^2.0.0+1
+  flutter_animate: ^4.1.1+1
+  supabase_flutter: ^2.3.0
+  google_sign_in: ^6.1.5
+  intl_phone_field: ^3.1.0
+  cupertino_battery_indicator: ^1.0.0
   
   
 

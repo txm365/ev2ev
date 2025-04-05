@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -8,100 +9,158 @@ class ProfilePage extends StatefulWidget {
 }
 
 class ProfilePageState extends State<ProfilePage> {
-  final Map<String, String> profileData = {};
-  bool isEditing = false;
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  bool _isEditing = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _loadProfile();
   }
 
-  void _loadProfileData() {
-    setState(() {
-      profileData.addAll({
-        'name': 'John Doe',
-        'email': 'john@example.com',
-        'phone': '+1 555 123 4567',
-        'location': 'San Francisco, CA'
+  Future<void> _loadProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        final response = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (mounted) {
+          setState(() {
+            _nameController.text = response?['first_name'] ?? 
+                user.email?.split('@').first ?? 'User';
+            _emailController.text = response?['email'] ?? user.email ?? '';
+            _isLoading = false;
+          });
+          
+          if (response == null) {
+            await _createInitialProfile(user);
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _nameController.text = user.email?.split('@').first ?? 'User';
+            _emailController.text = user.email ?? '';
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _createInitialProfile(User user) async {
+    await Supabase.instance.client.from('profiles').upsert({
+      'user_id': user.id,
+      'first_name': user.email?.split('@').first,
+      'email': user.email,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    try {
+      setState(() => _isLoading = true);
+      final user = Supabase.instance.client.auth.currentUser!;
+      
+      await Supabase.instance.client.from('profiles').upsert({
+        'user_id': user.id,
+        'first_name': _nameController.text,
+        'email': _emailController.text,
+        'updated_at': DateTime.now().toIso8601String(),
       });
-      nameController.text = profileData['name']!;
-      emailController.text = profileData['email']!;
-      phoneController.text = profileData['phone']!;
-      locationController.text = profileData['location']!;
-    });
+      
+      setState(() => _isEditing = false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  void _saveProfileData() {
-    setState(() {
-      profileData
-        ..['name'] = nameController.text
-        ..['email'] = emailController.text
-        ..['phone'] = phoneController.text
-        ..['location'] = locationController.text;
-      isEditing = false;
-    });
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: Icon(isEditing ? Icons.check : Icons.edit),
-            onPressed: () => setState(() => isEditing ? _saveProfileData() : isEditing = !isEditing),
+            icon: Icon(_isEditing ? Icons.check : Icons.edit),
+            onPressed: () => _isEditing ? _saveProfile() : setState(() => _isEditing = true),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _signOut,
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 40)),
-            _buildEditableField('Name', nameController),
-            _buildEditableField('Email', emailController),
-            _buildEditableField('Phone', phoneController),
-            _buildEditableField('Location', locationController),
-            if (!isEditing) ...[
-              const ListTile(
-                leading: Icon(Icons.history),
-                title: Text('Transaction History'),
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 50,
+                child: Text(
+                  _nameController.text.isNotEmpty 
+                      ? _nameController.text[0] 
+                      : '?',
+                  style: const TextStyle(fontSize: 24),
+                ),
               ),
-              const ListTile(
-                leading: Icon(Icons.payment),
-                title: Text('Payment Methods'),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: _isEditing,
+                validator: (value) => value!.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: _isEditing,
+                validator: (value) => 
+                    value!.contains('@') ? null : 'Invalid email',
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller) {
-    return isEditing
-        ? TextFormField(
-            controller: controller,
-            decoration: InputDecoration(labelText: label),
-          )
-        : ListTile(
-            leading: Icon(_getIconForLabel(label)),
-            title: Text(controller.text),
-          );
-  }
-
-  IconData _getIconForLabel(String label) {
-    switch (label) {
-      case 'Name': return Icons.person;
-      case 'Email': return Icons.email;
-      case 'Phone': return Icons.phone;
-      default: return Icons.location_on;
-    }
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
   }
 }
