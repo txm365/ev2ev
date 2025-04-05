@@ -4,10 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'providers/bluetooth_provider.dart';
 import 'providers/transaction_provider.dart';
-import 'screens/splash_screen.dart' as splash_screen;
-import 'screens/login_page.dart';
-import 'screens/signup_page.dart';
+import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/profile_screen.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -46,8 +47,9 @@ class MyApp extends StatelessWidget {
       home: const AuthWrapper(),
       routes: {
         '/main': (context) => const MainScreen(),
-        '/login': (context) => const LoginPage(),
-        '/signup': (context) => const SignupPage(),
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }
@@ -73,7 +75,7 @@ class AuthWrapperState extends State<AuthWrapper> {
         }
 
         final session = supabase.auth.currentSession;
-        return session == null ? const splash_screen.SplashScreen() : const MainScreen();
+        return session == null ? const SplashScreen() : const MainScreen();
       },
     );
   }

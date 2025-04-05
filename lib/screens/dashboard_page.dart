@@ -83,17 +83,26 @@ class DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Status Section
+            // Status Section with charging indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'ALL GOOD',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      isCharging ? Icons.bolt : Icons.power,
+                      color: isCharging ? Colors.green : Colors.blue,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isCharging ? 'CHARGING' : 'DISCHARGING',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isCharging ? Colors.green : Colors.blue,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   'Updated ${DateTime.now().toString().split(' ')[1].substring(0, 5)}',
@@ -242,7 +251,8 @@ class DashboardPageState extends State<DashboardPage> {
       children: [
         _buildBatteryIndicator(level, color, isCharging),
         const SizedBox(height: 8),
-        Text('${level.toStringAsFixed(1)}%',
+        Text(
+          '${level.toStringAsFixed(1)}%${isCharging ? ' (Charging)' : ''}',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,

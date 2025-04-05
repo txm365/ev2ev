@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_page.dart';
 import 'bluetooth_scan_page.dart';
 import 'transaction_page.dart';
-import 'profile_page.dart';
+import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,7 +18,7 @@ class MainScreenState extends State<MainScreen> {
     const DashboardPage(),
     const BluetoothScanPage(),
     const TransactionPage(),
-    const ProfilePage(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
