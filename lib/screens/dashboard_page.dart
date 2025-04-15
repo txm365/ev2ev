@@ -11,7 +11,7 @@ class DashboardPage extends StatefulWidget {
 
 class DashboardPageState extends State<DashboardPage> {
   BluetoothProvider? _bluetoothProvider;
-  final String userName = "Alex"; // Replace with dynamic user name
+  final String userName = "Velicious"; // Replace with dynamic user name
 
   @override
   void didChangeDependencies() {
@@ -198,7 +198,7 @@ class DashboardPageState extends State<DashboardPage> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
-          height: 180,
+          height: 200,
           child: Row(
             children: [
               Expanded(
@@ -225,7 +225,7 @@ class DashboardPageState extends State<DashboardPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.thermostat, size: 50, color: color),
+        Icon(Icons.thermostat, size: 120, color: color),
         const SizedBox(height: 8),
         Text('${temperature.toStringAsFixed(1)}°C',
           style: TextStyle(
@@ -252,9 +252,17 @@ class DashboardPageState extends State<DashboardPage> {
         _buildBatteryIndicator(level, color, isCharging),
         const SizedBox(height: 8),
         Text(
-          '${level.toStringAsFixed(1)}%${isCharging ? ' (Charging)' : ''}',
+          '${level.toStringAsFixed(1)}%',
           style: TextStyle(
             fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          '${isCharging ? ' CHARGING' : 'DISCHARGING'}',// check
+          style: TextStyle(
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: color,
           ),
