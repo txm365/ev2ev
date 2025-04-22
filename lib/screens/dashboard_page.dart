@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/bluetooth_provider.dart';
+import 'bluetooth_scan_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -11,7 +13,17 @@ class DashboardPage extends StatefulWidget {
 
 class DashboardPageState extends State<DashboardPage> {
   BluetoothProvider? _bluetoothProvider;
-  final String userName = "Velicious"; // Replace with dynamic user name
+  final String userName = "User";
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
+      _bluetoothProvider?.initialize();
+      _bluetoothProvider?.attemptAutoReconnect();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -34,7 +46,8 @@ class DashboardPageState extends State<DashboardPage> {
     if (mounted) setState(() {});
   }
 
-  Widget _buildUserGreeting() {
+  Widget _buildUserGreetingWithConnection() {
+    final isConnected = _bluetoothProvider?.isConnected ?? false;
     final hour = DateTime.now().hour;
     String greeting;
     
@@ -48,30 +61,97 @@ class DashboardPageState extends State<DashboardPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            '$greeting,',
-            style: const TextStyle(
-              fontSize: 20,
-              color: Colors.grey,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$greeting,',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  userName,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800],
+                  ),
+                ),
+                if (_bluetoothProvider?.lastDisconnectedTime != null && !isConnected)
+                  Text(
+                    'Last disconnected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+              ],
             ),
           ),
-          Text(
-            userName,
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[800],
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                size: 32,
+                color: isConnected ? Colors.green : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 100,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    backgroundColor: isConnected ? Colors.red[100] : Colors.blue[100],
+                    foregroundColor: isConnected ? Colors.red : Colors.blue,
+                  ),
+                  onPressed: () {
+                    if (isConnected) {
+                      _bluetoothProvider?.disconnect();
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
+                      );
+                    }
+                  },
+                  child: Text(
+                    isConnected ? 'Disconnect' : 'Connect',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCombinedStatusMetricsCard(Map<String, dynamic> data) {
+  Widget _buildCombinedStatusMetricsCard(Map<String, dynamic> data, bool isConnected) {
+    if (!isConnected) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(
+              child: Text(
+                'Connect to a device to view data',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final isCharging = data['I'] < 0;
     return Card(
       elevation: 4,
@@ -83,7 +163,6 @@ class DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Status Section with charging indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -158,9 +237,8 @@ class DashboardPageState extends State<DashboardPage> {
               ],
             ),
             const Divider(height: 40, thickness: 1),
-            
-            // Metrics Section
-            const Text('Performance Metrics',
+            const Text(
+              'Performance Metrics',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -188,7 +266,11 @@ class DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildGaugesCard(double temperature, double batteryLevel, bool isCharging) {
+  Widget _buildGaugesCard(double temperature, double batteryLevel, bool isCharging, bool isConnected) {
+    if (!isConnected) {
+      return const SizedBox.shrink();
+    }
+
     return Card(
       elevation: 4,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -260,7 +342,7 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
         Text(
-          '${isCharging ? ' CHARGING' : 'DISCHARGING'}',// check
+          isCharging ? 'CHARGING' : 'DISCHARGING',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -274,24 +356,6 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildMetricTile(String title, String value, IconData icon) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.blue[800], size: 28),
-      title: Text(value, 
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Text(title,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Colors.grey,
-        ),
-      ),
     );
   }
 
@@ -335,6 +399,24 @@ class DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  Widget _buildMetricTile(String title, String value, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.blue[800], size: 28),
+      title: Text(value, 
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(title,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
   Color _getTemperatureColor(double temp) {
     if (temp < 15) return Colors.blue;
     if (temp < 30) return Colors.green;
@@ -351,8 +433,9 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final bluetoothData = _bluetoothProvider?.deviceData ?? {
-      'bl': 75.0, 'v': 48.2, 'I': 2.5, 'T': 32.0, 'P': 0.0, 'range': 0.0
+      'bl': 0.0, 'v': 0.0, 'I': 0.0, 'T': 0.0, 'P': 0.0, 'range': 0.0
     };
+    final isConnected = _bluetoothProvider?.isConnected ?? false;
     final isCharging = bluetoothData['I'] < 0;
 
     return Scaffold(
@@ -362,9 +445,14 @@ class DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildUserGreeting(),
-              _buildCombinedStatusMetricsCard(bluetoothData),
-              _buildGaugesCard(bluetoothData['T'], bluetoothData['bl'], isCharging),
+              _buildUserGreetingWithConnection(),
+              _buildCombinedStatusMetricsCard(bluetoothData, isConnected),
+              _buildGaugesCard(
+                bluetoothData['T'], 
+                bluetoothData['bl'], 
+                isCharging,
+                isConnected,
+              ),
               const SizedBox(height: 24),
             ],
           ),

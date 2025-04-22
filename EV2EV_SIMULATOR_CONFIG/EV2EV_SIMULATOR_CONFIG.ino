@@ -17,8 +17,9 @@
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 // Web Server Configuration
-const char* ssid = "EV:[BX 22 NX GP]";
+const char* ssid = "EV:> [BX 22 NX GP]";
 const char* password = "bx22nxgp";
+const char* device_id = ssid;
 WebServer server(80);
 
 BLEServer* pServer = nullptr;
@@ -32,6 +33,8 @@ VehicleType currentVehicleProfile = EBIKE;
 
 struct VehicleProfile {
     const char* name;
+    char brand[32];           // Vehicle brand name
+    char model[32];           // Vehicle model name
     float nominalVoltage;     // V
     float maxPower;           // kW
     float batteryCapacity;    // kWh
@@ -44,6 +47,7 @@ VehicleProfile profiles[] = {
     // Car (EV)
     {
         "Electric Car",
+        "Tesla", "Model 3",
         400.0,     // 400V system
         150.0,      // 150kW max power
         75.0,       // 75kWh battery
@@ -54,6 +58,7 @@ VehicleProfile profiles[] = {
     // E-bike
     {
         "E-Bike",
+        "Specialized", "Turbo Vado",
         48.0,
         0.5,        // 500W motor
         1.0,        // 1kWh battery
@@ -64,6 +69,7 @@ VehicleProfile profiles[] = {
     // Scooter
     {
         "Scooter",
+        "Xiaomi", "Mi Electric Scooter",
         60.0,
         3.0,        // 3kW motor
         2.5,        // 2.5kWh battery
@@ -74,6 +80,7 @@ VehicleProfile profiles[] = {
     // Charging Station
     {
         "Charger",
+        "ChargePoint", "CT4000",
         400.0,
         0.0,        // No battery
         0.0,
@@ -84,6 +91,7 @@ VehicleProfile profiles[] = {
     // Custom Profile
     {
         "Custom",
+        "", "",      // Empty brand/model for custom
         48.0,
         1.0,
         2.0,
@@ -188,7 +196,7 @@ void updateSensorData() {
 }
 
 void setupBLE() {
-    BLEDevice::init("V2V ENERGY TRADER");
+    BLEDevice::init(device_id);
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(new MyServerCallbacks());
 
@@ -268,6 +276,12 @@ void setupWebServer() {
         html += "<button type='submit'>Set Profile</button>";
         html += "</form>";
         
+        // Current Vehicle Info
+        html += "<h2>Current Vehicle</h2>";
+        html += "<p><strong>Brand:</strong> " + String(profiles[currentVehicleProfile].brand) + "</p>";
+        html += "<p><strong>Model:</strong> " + String(profiles[currentVehicleProfile].model) + "</p>";
+        html += "<p><strong>Type:</strong> " + String(profiles[currentVehicleProfile].name) + "</p>";
+        
         // Data Source Selection
         html += "<form action='/setDataSource' method='POST'>";
         html += "<label>Data Source:</label>";
@@ -318,6 +332,12 @@ void setupWebServer() {
         if (currentVehicleProfile == CUSTOM) {
             html += "<h2>Custom Profile Settings</h2>";
             html += "<form action='/setCustomProfile' method='POST'>";
+            
+            html += "<label for='vehicleBrand'>Brand:</label>";
+            html += "<input type='text' id='vehicleBrand' name='vehicleBrand' value='" + String(profiles[CUSTOM].brand) + "'><br>";
+            
+            html += "<label for='vehicleModel'>Model:</label>";
+            html += "<input type='text' id='vehicleModel' name='vehicleModel' value='" + String(profiles[CUSTOM].model) + "'><br>";
             
             html += "<label for='nominalVoltage'>Nominal Voltage (V):</label>";
             html += "<input type='number' id='nominalVoltage' name='nominalVoltage' step='0.1' value='" + String(profiles[CUSTOM].nominalVoltage) + "'><br>";
@@ -372,6 +392,17 @@ void setupWebServer() {
         if (server.hasArg("efficiency")) profiles[CUSTOM].efficiency = server.arg("efficiency").toFloat();
         if (server.hasArg("maxTemp")) profiles[CUSTOM].maxTemp = server.arg("maxTemp").toFloat();
         if (server.hasArg("chargeRate")) profiles[CUSTOM].chargeRate = server.arg("chargeRate").toFloat();
+        
+        // Save brand and model
+        if (server.hasArg("vehicleBrand")) {
+            strncpy(profiles[CUSTOM].brand, server.arg("vehicleBrand").c_str(), sizeof(profiles[CUSTOM].brand) - 1);
+            profiles[CUSTOM].brand[sizeof(profiles[CUSTOM].brand) - 1] = '\0';
+        }
+        if (server.hasArg("vehicleModel")) {
+            strncpy(profiles[CUSTOM].model, server.arg("vehicleModel").c_str(), sizeof(profiles[CUSTOM].model) - 1);
+            profiles[CUSTOM].model[sizeof(profiles[CUSTOM].model) - 1] = '\0';
+        }
+        
         saveSettings();
         server.sendHeader("Location", "/");
         server.send(303);
@@ -404,6 +435,19 @@ void loadSettings() {
     EEPROM.get(34, profiles[CUSTOM].maxTemp);
     EEPROM.get(38, profiles[CUSTOM].chargeRate);
     
+    // Read brand and model (starting at byte 42)
+    for (int i = 0; i < sizeof(profiles[CUSTOM].brand); i++) {
+        profiles[CUSTOM].brand[i] = EEPROM.read(42 + i);
+        if (profiles[CUSTOM].brand[i] == '\0') break;
+    }
+    profiles[CUSTOM].brand[sizeof(profiles[CUSTOM].brand) - 1] = '\0';
+    
+    for (int i = 0; i < sizeof(profiles[CUSTOM].model); i++) {
+        profiles[CUSTOM].model[i] = EEPROM.read(42 + sizeof(profiles[CUSTOM].brand) + i);
+        if (profiles[CUSTOM].model[i] == '\0') break;
+    }
+    profiles[CUSTOM].model[sizeof(profiles[CUSTOM].model) - 1] = '\0';
+    
     EEPROM.end();
     
     // Initialize manual values if they're 0 (first run)
@@ -434,6 +478,17 @@ void saveSettings() {
     EEPROM.put(34, profiles[CUSTOM].maxTemp);
     EEPROM.put(38, profiles[CUSTOM].chargeRate);
     
+    // Save brand and model (starting at byte 42)
+    for (int i = 0; i < sizeof(profiles[CUSTOM].brand); i++) {
+        EEPROM.write(42 + i, profiles[CUSTOM].brand[i]);
+        if (profiles[CUSTOM].brand[i] == '\0') break;
+    }
+    
+    for (int i = 0; i < sizeof(profiles[CUSTOM].model); i++) {
+        EEPROM.write(42 + sizeof(profiles[CUSTOM].brand) + i, profiles[CUSTOM].model[i]);
+        if (profiles[CUSTOM].model[i] == '\0') break;
+    }
+    
     EEPROM.commit();
     EEPROM.end();
 }
@@ -455,8 +510,10 @@ void loop() {
         lastDataSentTime = currentMillis;
         updateSensorData();
 
-        DynamicJsonDocument doc(200);
+        DynamicJsonDocument doc(256);
         doc["profile"] = profiles[currentVehicleProfile].name;
+        doc["brand"] = profiles[currentVehicleProfile].brand;
+        doc["model"] = profiles[currentVehicleProfile].model;
         doc["V"] = round(energyData.voltage * 10) / 10.0;
         doc["I"] = round(energyData.current * 10) / 10.0;
         doc["P"] = round(energyData.power * 10) / 10.0;

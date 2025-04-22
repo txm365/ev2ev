@@ -46,7 +46,7 @@ class TransactionPageState extends State<TransactionPage> {
         _transactionProvider.updatePosition(
           LatLng(position.latitude, position.longitude)
         );
-        if (_mapReady) { // Only move if map is ready
+        if (_mapReady) {
           _mapController.move(_transactionProvider.currentPosition!, 15);
         }
       }
@@ -94,6 +94,54 @@ class TransactionPageState extends State<TransactionPage> {
     } finally {
       if (mounted) setState(() => _isRouting = false);
     }
+  }
+
+  void _handleTransactionAction(String type) async {
+    if (_transactionProvider.selectedPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a destination first')));
+      return;
+    }
+
+    final energy = _transactionProvider.calculateEnergyRequired(6);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Confirm $type Transaction'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Distance: ${_transactionProvider.selectedDistance!.toStringAsFixed(2)} km'),
+            Text('Estimated Energy: ${energy.toStringAsFixed(2)} kWh'),
+            if (_bluetoothProvider.isConnected) ...[
+              const SizedBox(height: 8),
+              Text('Current SOC: ${_bluetoothProvider.deviceData['bl']?.toStringAsFixed(0) ?? '0'}%'),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _transactionProvider.setRoute(
+                _transactionProvider.selectedPoint!,
+                _transactionProvider.routePoints,
+                _transactionProvider.selectedDistance!,
+                type: type
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$type transaction started')));
+            },
+            child: Text(type),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -153,9 +201,13 @@ class TransactionPageState extends State<TransactionPage> {
                 right: 16,
                 child: Row(
                   children: [
-                    Expanded(child: _buildActionButton('Buy', Icons.shopping_cart, Colors.green)),
+                    Expanded(
+                      child: _buildActionButton('Buy', Icons.shopping_cart, Colors.green)
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildActionButton('Sell', Icons.electric_bolt, Colors.blue)),
+                    Expanded(
+                      child: _buildActionButton('Sell', Icons.electric_bolt, Colors.blue)
+                    ),
                   ],
                 ),
               ),
@@ -211,7 +263,7 @@ class TransactionPageState extends State<TransactionPage> {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
-      onPressed: () {},
+      onPressed: () => _handleTransactionAction(text),
     );
   }
 }
