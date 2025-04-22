@@ -61,74 +61,76 @@ class DashboardPageState extends State<DashboardPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$greeting,',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Colors.grey,
-                  ),
-                ),
-                Text(
-                  userName,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
-                  ),
-                ),
-                if (_bluetoothProvider?.lastDisconnectedTime != null && !isConnected)
-                  Text(
-                    'Last disconnected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
-              ],
+          Text(
+            '$greeting,',
+            style: const TextStyle(
+              fontSize: 20,
+              color: Colors.grey,
             ),
           ),
+          const SizedBox(height: 4),
           Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
-                size: 32,
-                color: isConnected ? Colors.green : Colors.grey,
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 100,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    backgroundColor: isConnected ? Colors.red[100] : Colors.blue[100],
-                    foregroundColor: isConnected ? Colors.red : Colors.blue,
-                  ),
-                  onPressed: () {
-                    if (isConnected) {
-                      _bluetoothProvider?.disconnect();
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
-                      );
-                    }
-                  },
-                  child: Text(
-                    isConnected ? 'Disconnect' : 'Connect',
-                    style: const TextStyle(fontSize: 14),
-                  ),
+              Text(
+                userName,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[800],
                 ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                    size: 28,
+                    color: isConnected ? Colors.green : Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 100,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        backgroundColor: isConnected ? Colors.red[100] : Colors.blue[100],
+                        foregroundColor: isConnected ? Colors.red : Colors.blue,
+                      ),
+                      onPressed: () {
+                        if (isConnected) {
+                          _bluetoothProvider?.disconnect();
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
+                          );
+                        }
+                      },
+                      child: Text(
+                        isConnected ? 'Disconnect' : 'Connect',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+          if (_bluetoothProvider?.lastDisconnectedTime != null && !isConnected)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Last disconnected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -153,6 +155,8 @@ class DashboardPageState extends State<DashboardPage> {
     }
 
     final isCharging = data['I'] < 0;
+    final hasVehicleInfo = data['brand'] != '';
+
     return Card(
       elevation: 4,
       margin: const EdgeInsets.all(16),
@@ -163,6 +167,73 @@ class DashboardPageState extends State<DashboardPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            if (hasVehicleInfo)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    Icon(
+                      data['profile'] == 'Electric Car' 
+                        ? Icons.directions_car 
+                        : Icons.electric_scooter,
+                      size: 40,
+                      color: Colors.blue[800],
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${data['brand']} ${data['model']}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          data['profile'],
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.info_outline),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('${data['brand']} Details'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Model: ${data['model']}'),
+                                Text('Type: ${data['profile']}'),
+                                const SizedBox(height: 16),
+                                const Text('Current Status:',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                                Text('Voltage: ${data['v']} V'),
+                                Text('Current: ${data['I']} A'),
+                                Text('Power: ${data['P']} W'),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                child: const Text('Close'),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -184,7 +255,7 @@ class DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
                 Text(
-                  'Updated ${DateTime.now().toString().split(' ')[1].substring(0, 5)}',
+                  'Updated ${DateFormat('HH:mm').format(DateTime.now())}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
@@ -433,6 +504,7 @@ class DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final bluetoothData = _bluetoothProvider?.deviceData ?? {
+      'profile': '', 'brand': '', 'model': '',
       'bl': 0.0, 'v': 0.0, 'I': 0.0, 'T': 0.0, 'P': 0.0, 'range': 0.0
     };
     final isConnected = _bluetoothProvider?.isConnected ?? false;

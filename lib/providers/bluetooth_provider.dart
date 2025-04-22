@@ -6,8 +6,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 
 class BluetoothProvider with ChangeNotifier {
-  // Device data storage
+  // Device data storage with profile information
   Map<String, dynamic> deviceData = {
+    'profile': '', 'brand': '', 'model': '',
     'bl': 0.0, 'v': 0.0, 'I': 0.0, 'T': 0.0, 'P': 0.0, 'range': 0.0
   };
 
@@ -36,6 +37,9 @@ class BluetoothProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isConnected => _isConnected;
   DateTime? get lastDisconnectedTime => _lastDisconnectedTime;
+  String get vehicleName => deviceData['brand'] != '' 
+      ? '${deviceData['brand']} ${deviceData['model']}' 
+      : 'No Vehicle Connected';
 
   Future<void> initialize() async {
     if (await FlutterBluePlus.isSupported) {
@@ -124,6 +128,9 @@ class BluetoothProvider with ChangeNotifier {
     try {
       final parsed = jsonDecode(jsonData);
       deviceData = {
+        'profile': parsed['profile'] ?? '',
+        'brand': parsed['brand'] ?? '',
+        'model': parsed['model'] ?? '',
         'v': parsed['V']?.toDouble() ?? 0.0,
         'I': parsed['I']?.toDouble() ?? 0.0,
         'bl': parsed['SOC']?.toDouble() ?? 0.0,

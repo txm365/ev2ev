@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard_page.dart';
-import 'bluetooth_scan_page.dart';
+//import 'bluetooth_scan_page.dart';
 import 'transaction_page.dart';
 import 'profile_screen.dart';
 
@@ -16,7 +16,6 @@ class MainScreenState extends State<MainScreen> {
 
   static final List<Widget> _pages = [
     const DashboardPage(),
-    const BluetoothScanPage(),
     const TransactionPage(),
     const ProfileScreen(),
   ];
@@ -37,10 +36,6 @@ class MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bluetooth_searching),
-            label: 'Connect',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.swap_horiz),
