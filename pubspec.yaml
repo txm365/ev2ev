@@ -1,5 +1,5 @@
 name: eve2ev
-description: Electric Vehicle Dashboard with Energy Trading
+description: Electric Vehicle (EV) route planner and charging station locator.
 
 version: 1.0.0+1
 

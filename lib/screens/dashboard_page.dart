@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/bluetooth_provider.dart';
 import 'bluetooth_scan_page.dart';
 
@@ -13,16 +14,55 @@ class DashboardPage extends StatefulWidget {
 
 class DashboardPageState extends State<DashboardPage> {
   BluetoothProvider? _bluetoothProvider;
-  final String userName = "User";
+  String? _userName;
+  bool _loadingProfile = true;
+  String? _avatarUrl;
 
   @override
   void initState() {
     super.initState();
+    _fetchUserProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bluetoothProvider = Provider.of<BluetoothProvider>(context, listen: false);
       _bluetoothProvider?.initialize();
       _bluetoothProvider?.attemptAutoReconnect();
     });
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('first_name, last_name, email, avatar_url')
+          .eq('user_id', userId)
+          .single();
+
+      if (mounted) {
+        setState(() {
+          // Combine first and last name, fallback to email username, then 'User'
+          final firstName = response['first_name']?.toString().trim() ?? '';
+          final lastName = response['last_name']?.toString().trim() ?? '';
+          _userName = '$firstName '.trim();
+          
+          if (_userName!.isEmpty) {
+            _userName = response['email']?.toString().split('@').first ?? 'User';
+          }
+          
+          _avatarUrl = response['avatar_url']?.toString();
+          _loadingProfile = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _userName = 'User';
+          _loadingProfile = false;
+        });
+      }
+    }
   }
 
   @override
@@ -75,13 +115,40 @@ class DashboardPageState extends State<DashboardPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                userName,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[800],
-                ),
+              Row(
+                children: [
+                  if (_avatarUrl != null)
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: NetworkImage(_avatarUrl!),
+                    )
+                  else if (!_loadingProfile)
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue[800],
+                      child: Text(
+                        _userName?.substring(0, 1).toUpperCase() ?? 'U',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  if (_avatarUrl != null || !_loadingProfile) const SizedBox(width: 12),
+                  _loadingProfile
+                      ? const SizedBox(
+                          width: 100,
+                          child: LinearProgressIndicator(),
+                        )
+                      : Text(
+                          _userName ?? 'User',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[800],
+                          ),
+                        ),
+                ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -241,7 +308,7 @@ class DashboardPageState extends State<DashboardPage> {
                   children: [
                     Icon(
                       isCharging ? Icons.bolt : Icons.power,
-                      color: isCharging ? Colors.green : Colors.blue,
+                      color: isCharging ? Colors.green : Colors.red,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -249,13 +316,13 @@ class DashboardPageState extends State<DashboardPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isCharging ? Colors.green : Colors.blue,
+                        color: isCharging ? Colors.green : Colors.red,
                       ),
                     ),
                   ],
                 ),
                 Text(
-                  'Updated ${DateFormat('HH:mm').format(DateTime.now())}',
+                  'Last updated ${DateFormat('HH:mm').format(DateTime.now())}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,
@@ -290,7 +357,7 @@ class DashboardPageState extends State<DashboardPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     const Text(
-                      'Range',
+                      'Est. Drivable Range',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
@@ -318,7 +385,7 @@ class DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 180,
+              height: 120,
               child: GridView.count(
                 crossAxisCount: 2,
                 childAspectRatio: 2.5,
@@ -351,7 +418,7 @@ class DashboardPageState extends State<DashboardPage> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
-          height: 200,
+          height: 170,
           child: Row(
             children: [
               Expanded(
@@ -378,7 +445,7 @@ class DashboardPageState extends State<DashboardPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.thermostat, size: 120, color: color),
+        Icon(Icons.thermostat, size: 100, color: color),
         const SizedBox(height: 8),
         Text('${temperature.toStringAsFixed(1)}°C',
           style: TextStyle(
@@ -435,8 +502,8 @@ class DashboardPageState extends State<DashboardPage> {
       alignment: Alignment.center,
       children: [
         Container(
-          width: 60,
-          height: 100,
+          width: 40,
+          height: 80,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey, width: 2),
             borderRadius: BorderRadius.circular(8),
@@ -444,7 +511,7 @@ class DashboardPageState extends State<DashboardPage> {
           child: Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              height: level / 100 * 96,
+              height: level / 80 * 96,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),

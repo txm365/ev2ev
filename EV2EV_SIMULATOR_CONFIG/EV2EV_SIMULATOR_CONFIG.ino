@@ -17,8 +17,11 @@
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 // Web Server Configuration
-const char* ssid = "EV:> [BX 22 NX GP]";
-const char* password = "bx22nxgp";
+String deviceID = String(ESP.getEfuseMac(),HEX);
+String deviceName ="EV: ["+ deviceID + "]";
+
+const char* ssid = deviceName.c_str();
+const char* password = deviceID.c_str();
 const char* device_id = ssid;
 WebServer server(80);
 
