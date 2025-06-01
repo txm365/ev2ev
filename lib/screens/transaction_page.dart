@@ -1,3 +1,4 @@
+// lib/screens/transaction_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/bluetooth_provider.dart';
 
@@ -23,6 +26,7 @@ class TransactionPageState extends State<TransactionPage> {
   late final BluetoothProvider _bluetoothProvider;
   bool _isRouting = false;
   bool _mapReady = false;
+  Position? _currentPosition;
 
   @override
   void initState() {
@@ -40,41 +44,90 @@ class TransactionPageState extends State<TransactionPage> {
   }
 
   Future<void> _initializePosition() async {
-    if (_transactionProvider.currentPosition == null) {
-      final position = await _bluetoothProvider.getCurrentPosition();
-      if (position != null && mounted) {
+    try {
+      // Check and request location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationError('Location permissions are denied');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationError('Location permissions are permanently denied');
+        return;
+      }
+
+      // Get current position
+      _currentPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (_currentPosition != null && mounted) {
         _transactionProvider.updatePosition(
-          LatLng(position.latitude, position.longitude)
+          LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
         );
         if (_mapReady) {
           _mapController.move(_transactionProvider.currentPosition!, 15);
         }
       }
+    } catch (e) {
+      _showLocationError('Error getting location: $e');
+    }
+  }
+
+  void _showLocationError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Settings',
+            textColor: Colors.white,
+            onPressed: () => openAppSettings(),
+          ),
+        ),
+      );
     }
   }
 
   Future<Map<String, dynamic>> _getOSRMRoute(LatLng start, LatLng end) async {
-    final response = await http.get(Uri.parse(
-      'https://router.project-osrm.org/route/v1/driving/'
-      '${start.longitude},${start.latitude};'
-      '${end.longitude},${end.latitude}'
-      '?overview=full&geometries=polyline'
-    ));
+    try {
+      final response = await http.get(Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${start.longitude},${start.latitude};'
+        '${end.longitude},${end.latitude}'
+        '?overview=full&geometries=polyline'
+      ));
 
-    if (response.statusCode == 200) return jsonDecode(response.body);
-    throw Exception('Failed to load route');
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      throw Exception('Failed to load route: $e');
+    }
   }
 
   void _handleMapTap(TapPosition tapPosition, LatLng latLng) async {
     if (!mounted || _isRouting || !_mapReady) return;
 
+    final currentPos = _transactionProvider.currentPosition;
+    if (currentPos == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Current location not available')),
+      );
+      return;
+    }
+
     setState(() => _isRouting = true);
     
     try {
-      final routeData = await _getOSRMRoute(
-        _transactionProvider.currentPosition!, 
-        latLng
-      );
+      final routeData = await _getOSRMRoute(currentPos, latLng);
       final route = routeData['routes'][0];
       final points = _polylinePoints.decodePolyline(route['geometry']);
 
@@ -147,7 +200,15 @@ class TransactionPageState extends State<TransactionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Transactions')),
+      appBar: AppBar(
+        title: const Text('Transactions'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            onPressed: _initializePosition,
+          ),
+        ],
+      ),
       body: Consumer<TransactionProvider>(
         builder: (context, transactionProvider, _) {
           return Stack(
@@ -155,7 +216,7 @@ class TransactionPageState extends State<TransactionPage> {
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: transactionProvider.currentPosition ?? const LatLng(0, 0),
+                  initialCenter: transactionProvider.currentPosition ?? const LatLng(-26.2041, 28.0473), // Johannesburg
                   initialZoom: 15.0,
                   onTap: _handleMapTap,
                   onMapReady: () => setState(() => _mapReady = true),
@@ -193,8 +254,15 @@ class TransactionPageState extends State<TransactionPage> {
                   ),
                 ],
               ),
-              if (!_mapReady)
-                const Center(child: CircularProgressIndicator()),
+              
+              // Loading indicator
+              if (!_mapReady || _isRouting)
+                Container(
+                  color: Colors.black26,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              
+              // Action buttons
               Positioned(
                 top: 16,
                 left: 16,
@@ -211,6 +279,8 @@ class TransactionPageState extends State<TransactionPage> {
                   ],
                 ),
               ),
+              
+              // Distance info
               if (transactionProvider.selectedDistance != null)
                 Positioned(
                   bottom: 16,
@@ -218,8 +288,6 @@ class TransactionPageState extends State<TransactionPage> {
                   right: 16,
                   child: _buildDistanceInfo(transactionProvider),
                 ),
-              if (_isRouting)
-                const Center(child: CircularProgressIndicator()),
             ],
           );
         }
@@ -246,7 +314,12 @@ class TransactionPageState extends State<TransactionPage> {
             ElevatedButton.icon(
               icon: const Icon(Icons.directions),
               label: const Text('Navigate'),
-              onPressed: () {},
+              onPressed: () {
+                // TODO: Implement navigation
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Navigation feature coming soon!')),
+                );
+              },
             ),
           ],
         ),

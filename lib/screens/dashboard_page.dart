@@ -44,7 +44,7 @@ class DashboardPageState extends State<DashboardPage> {
         setState(() {
           // Combine first and last name, fallback to email username, then 'User'
           final firstName = response['first_name']?.toString().trim() ?? '';
-          final lastName = response['last_name']?.toString().trim() ?? '';
+          
           _userName = '$firstName '.trim();
           
           if (_userName!.isEmpty) {
@@ -418,7 +418,7 @@ class DashboardPageState extends State<DashboardPage> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
-          height: 170,
+          height: 200,
           child: Row(
             children: [
               Expanded(
@@ -503,7 +503,7 @@ class DashboardPageState extends State<DashboardPage> {
       children: [
         Container(
           width: 40,
-          height: 80,
+          height: 100,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey, width: 2),
             borderRadius: BorderRadius.circular(8),
@@ -511,7 +511,7 @@ class DashboardPageState extends State<DashboardPage> {
           child: Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              height: level / 80 * 96,
+              height: level / 100 * 96,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),

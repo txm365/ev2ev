@@ -7,12 +7,14 @@ class TransactionProvider with ChangeNotifier {
   List<LatLng> _routePoints = [];
   double? _selectedDistance;
   String? _transactionType;
+  bool _isNavigating = false;
 
   LatLng? get currentPosition => _currentPosition;
   LatLng? get selectedPoint => _selectedPoint;
   List<LatLng> get routePoints => _routePoints;
   double? get selectedDistance => _selectedDistance;
   String? get transactionType => _transactionType;
+  bool get isNavigating => _isNavigating;
 
   void updatePosition(LatLng position) {
     _currentPosition = position;
@@ -29,6 +31,7 @@ class TransactionProvider with ChangeNotifier {
     _routePoints = points;
     _selectedDistance = distance;
     _transactionType = type;
+    _isNavigating = type != null;
     notifyListeners();
   }
 
@@ -37,6 +40,12 @@ class TransactionProvider with ChangeNotifier {
     _routePoints = [];
     _selectedDistance = null;
     _transactionType = null;
+    _isNavigating = false;
+    notifyListeners();
+  }
+
+  void updateRoutePoints(List<LatLng> newPoints) {
+    _routePoints = newPoints;
     notifyListeners();
   }
 }
