@@ -209,9 +209,9 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -425,7 +425,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -487,7 +487,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
                     decoration: BoxDecoration(
                       color: _selectedIndex == index 
-                          ? Colors.blue.withOpacity(0.1) 
+                          ? Colors.blue.withValues(alpha: 0.1) 
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -497,7 +497,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: _selectedIndex == index ? item.activeIcon : icon,
