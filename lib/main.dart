@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
 import 'providers/bluetooth_provider.dart';
 import 'providers/transaction_provider.dart';
-import 'providers/marketplace_provider.dart'; // Add this import
+import 'providers/marketplace_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -27,7 +27,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
-        ChangeNotifierProvider(create: (_) => MarketplaceProvider()), // Add this line
+        ChangeNotifierProvider(create: (_) => MarketplaceProvider()),
       ],
       child: const MyApp(),
     ),
@@ -103,8 +103,8 @@ class MyApp extends StatelessWidget {
           labelColor: Colors.blue,
           unselectedLabelColor: Colors.grey,
           indicator: UnderlineTabIndicator(
-            borderSide: const BorderSide(color: Colors.blue, width: 2),
-            insets: const EdgeInsets.symmetric(horizontal: 16),
+            borderSide: BorderSide(color: Colors.blue, width: 2),
+            insets: EdgeInsets.symmetric(horizontal: 16),
           ),
         ),
       ),
@@ -140,7 +140,11 @@ class AuthWrapperState extends State<AuthWrapper> {
       if (session != null) {
         // Initialize marketplace provider when user is authenticated
         final marketplaceProvider = context.read<MarketplaceProvider>();
-        marketplaceProvider.getCurrentLocation();
+        marketplaceProvider.initialize();
+        
+        // Initialize bluetooth provider
+        final bluetoothProvider = context.read<BluetoothProvider>();
+        bluetoothProvider.initialize();
       }
     });
   }
@@ -154,22 +158,37 @@ class AuthWrapperState extends State<AuthWrapper> {
         if (snapshot.hasData) {
           final authState = snapshot.data!;
           
-          // Check for any authentication errors
+          // Initialize providers when user signs in
+          if (authState.event == AuthChangeEvent.signedIn) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                final marketplaceProvider = context.read<MarketplaceProvider>();
+                marketplaceProvider.initialize();
+                
+                final bluetoothProvider = context.read<BluetoothProvider>();
+                bluetoothProvider.initialize();
+              }
+            });
+          }
+          
+          // Clear cached data when user signs out
           if (authState.event == AuthChangeEvent.signedOut) {
-            // Clear any cached data when user signs out
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 context.read<MarketplaceProvider>().clearError();
+                context.read<BluetoothProvider>().clearError();
               }
             });
           }
         }
 
-        // Check for Bluetooth provider errors
-        return Consumer<BluetoothProvider>(
-          builder: (context, bluetoothProvider, child) {
-            if (bluetoothProvider.errorMessage != null) {
-              return _buildErrorScreen(context, bluetoothProvider);
+        // Check for provider errors and show error handling
+        return Consumer2<BluetoothProvider, MarketplaceProvider>(
+          builder: (context, bluetoothProvider, marketplaceProvider, child) {
+            // Show critical error screen if needed
+            if (bluetoothProvider.errorMessage != null && 
+                bluetoothProvider.errorMessage!.contains('not supported')) {
+              return _buildCriticalErrorScreen(context, bluetoothProvider);
             }
 
             final session = supabase.auth.currentSession;
@@ -180,7 +199,7 @@ class AuthWrapperState extends State<AuthWrapper> {
     );
   }
 
-  Widget _buildErrorScreen(BuildContext context, BluetoothProvider provider) {
+  Widget _buildCriticalErrorScreen(BuildContext context, BluetoothProvider provider) {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -217,7 +236,7 @@ class AuthWrapperState extends State<AuthWrapper> {
                 
                 // Error title
                 Text(
-                  'Connection Error',
+                  'Bluetooth Not Available',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -239,44 +258,26 @@ class AuthWrapperState extends State<AuthWrapper> {
                 
                 const SizedBox(height: 32),
                 
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Retry button
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        provider.clearError();
-                        provider.initialize();
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry Connection'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    
-                    // Continue anyway button
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        provider.clearError();
-                        Navigator.pushReplacementNamed(context, '/main');
-                      },
-                      icon: const Icon(Icons.skip_next),
-                      label: const Text('Continue Anyway'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue,
-                      ),
-                    ),
-                  ],
+                // Continue button - marketplace still works
+                ElevatedButton.icon(
+                  onPressed: () {
+                    provider.clearError();
+                    Navigator.pushReplacementNamed(context, '/main');
+                  },
+                  icon: const Icon(Icons.store),
+                  label: const Text('Continue to Marketplace'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  ),
                 ),
                 
                 const SizedBox(height: 16),
                 
                 // Help text
                 Text(
-                  'You can still use the marketplace and other features without Bluetooth',
+                  'You can still use the energy marketplace without Bluetooth.\nHardware features will be unavailable.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],

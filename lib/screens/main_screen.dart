@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
 import 'dashboard_page.dart';
-import 'marketplace_screen.dart'; // Add marketplace import
+import 'marketplace_screen.dart';
 import 'transaction_page.dart';
 import 'profile_screen.dart';
+import 'bluetooth_scan_page.dart';
 import '../providers/marketplace_provider.dart';
 import '../providers/bluetooth_provider.dart';
+import '../widgets/create_listing_dialog.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -25,7 +27,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   // Pages list with marketplace included
   static final List<Widget> _pages = [
     const DashboardPage(),
-    const MarketplaceScreen(), // Add marketplace screen
+    const MarketplaceScreen(),
     const TransactionPage(),
     const ProfileScreen(),
   ];
@@ -166,14 +168,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   title: 'Create Energy Listing',
                   subtitle: 'Start selling your excess energy',
                   color: Colors.green,
-                  onTap: () {
-                    Navigator.pop(context);
-                    // Navigate to marketplace and show create listing dialog
-                    setState(() => _selectedIndex = 1);
-                    _pageController.animateToPage(1, 
-                      duration: const Duration(milliseconds: 300), 
-                      curve: Curves.easeInOut);
-                  },
+                  onTap: () => _handleCreateListing(),
                 ),
                 const SizedBox(height: 12),
                 _buildQuickActionItem(
@@ -181,13 +176,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   title: 'Find Energy Nearby',
                   subtitle: 'Browse available energy providers',
                   color: Colors.blue,
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() => _selectedIndex = 1);
-                    _pageController.animateToPage(1, 
-                      duration: const Duration(milliseconds: 300), 
-                      curve: Curves.easeInOut);
-                  },
+                  onTap: () => _handleFindEnergy(),
                 ),
                 const SizedBox(height: 12),
                 _buildQuickActionItem(
@@ -195,13 +184,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   title: 'Connect Device',
                   subtitle: 'Connect to your EV hardware',
                   color: Colors.orange,
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() => _selectedIndex = 0);
-                    _pageController.animateToPage(0, 
-                      duration: const Duration(milliseconds: 300), 
-                      curve: Curves.easeInOut);
-                  },
+                  onTap: () => _handleConnectDevice(),
                 ),
               ],
             ),
@@ -270,6 +253,140 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Quick action handlers
+  void _handleCreateListing() {
+    Navigator.pop(context); // Close bottom sheet
+    
+    final marketplaceProvider = context.read<MarketplaceProvider>();
+    
+    // Check if user already has an active listing
+    if (marketplaceProvider.myActiveListing != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You already have an active listing. Delete it first to create a new one.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Navigate to marketplace to show existing listing
+      setState(() => _selectedIndex = 1);
+      _pageController.animateToPage(1, 
+        duration: const Duration(milliseconds: 300), 
+        curve: Curves.easeInOut);
+      return;
+    }
+
+    // Show create listing dialog
+    showDialog(
+      context: context,
+      builder: (context) => CreateListingDialog(
+        onSubmit: (data) async {
+          Navigator.of(context).pop();
+          
+          // Show loading indicator
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+
+          final success = await marketplaceProvider.createEnergyListing(
+            pricePerKwh: data['pricePerKwh'],
+            availableEnergy: data['availableEnergy'],
+            minEnergySale: data['minEnergySale'],
+            maxEnergySale: data['maxEnergySale'],
+            vehicleType: data['vehicleType'],
+            connectorType: data['connectorType'],
+            availabilityEnd: data['availabilityEnd'],
+            description: data['description'],
+          );
+
+          // Close loading indicator
+          Navigator.of(context).pop();
+
+          if (success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Energy listing created successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            // Navigate to marketplace sell tab
+            setState(() => _selectedIndex = 1);
+            _pageController.animateToPage(1, 
+              duration: const Duration(milliseconds: 300), 
+              curve: Curves.easeInOut);
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to create listing: ${marketplaceProvider.errorMessage ?? "Unknown error"}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _handleFindEnergy() {
+    Navigator.pop(context); // Close bottom sheet
+    
+    // Navigate to marketplace buy tab
+    setState(() => _selectedIndex = 1);
+    _pageController.animateToPage(1, 
+      duration: const Duration(milliseconds: 300), 
+      curve: Curves.easeInOut);
+
+    // Refresh nearby listings
+    final marketplaceProvider = context.read<MarketplaceProvider>();
+    marketplaceProvider.getNearbyListings();
+  }
+
+  void _handleConnectDevice() {
+    Navigator.pop(context); // Close bottom sheet
+    
+    final bluetoothProvider = context.read<BluetoothProvider>();
+    
+    if (bluetoothProvider.isConnected) {
+      // If already connected, show option to disconnect or go to dashboard
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Device Connected'),
+          content: Text('Already connected to ${bluetoothProvider.connectedDevice?.platformName ?? "device"}'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                bluetoothProvider.disconnect();
+              },
+              child: const Text('Disconnect'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _selectedIndex = 0);
+                _pageController.animateToPage(0, 
+                  duration: const Duration(milliseconds: 300), 
+                  curve: Curves.easeInOut);
+              },
+              child: const Text('View Dashboard'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Navigate to Bluetooth scan page
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -308,7 +425,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -370,7 +487,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
                     decoration: BoxDecoration(
                       color: _selectedIndex == index 
-                          ? Colors.blue.withValues(alpha: 0.1) 
+                          ? Colors.blue.withOpacity(0.1) 
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -380,7 +497,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
+                      color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: _selectedIndex == index ? item.activeIcon : icon,
@@ -395,5 +512,3 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 }
-
-// Extension removed as it was unused
