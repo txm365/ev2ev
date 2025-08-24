@@ -30,7 +30,9 @@ dependencies:
   badges: ^3.1.2  # For notification badges
   #location: ^7.0.0  # Add this for location services
   dio: ^5.4.0  # Add this for HTTP requests
-  
+    
+  #
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
