@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-class TransactionProvider with ChangeNotifier {
+class MapProvider with ChangeNotifier {
   LatLng? _currentPosition;
   LatLng? _selectedPoint;
   List<LatLng> _routePoints = [];
   double? _selectedDistance;
-  String? _transactionType;
+  String? _routeType;
   bool _isNavigating = false;
 
   LatLng? get currentPosition => _currentPosition;
   LatLng? get selectedPoint => _selectedPoint;
   List<LatLng> get routePoints => _routePoints;
   double? get selectedDistance => _selectedDistance;
-  String? get transactionType => _transactionType;
+  String? get routeType => _routeType;
   bool get isNavigating => _isNavigating;
 
   void updatePosition(LatLng position) {
@@ -30,7 +30,7 @@ class TransactionProvider with ChangeNotifier {
     _selectedPoint = end;
     _routePoints = points;
     _selectedDistance = distance;
-    _transactionType = type;
+    _routeType = type;
     _isNavigating = type != null;
     notifyListeners();
   }
@@ -39,7 +39,7 @@ class TransactionProvider with ChangeNotifier {
     _selectedPoint = null;
     _routePoints = [];
     _selectedDistance = null;
-    _transactionType = null;
+    _routeType = null;
     _isNavigating = false;
     notifyListeners();
   }

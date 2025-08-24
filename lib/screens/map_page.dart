@@ -1,4 +1,4 @@
-// lib/screens/transaction_page.dart
+// lib/screens/map_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -9,20 +9,20 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../providers/transaction_provider.dart';
+import '../providers/map_provider.dart';
 import '../providers/bluetooth_provider.dart';
 
-class TransactionPage extends StatefulWidget {
-  const TransactionPage({super.key});
+class MapPage extends StatefulWidget {
+  const MapPage({super.key});
 
   @override
-  TransactionPageState createState() => TransactionPageState();
+  MapPageState createState() => MapPageState();
 }
 
-class TransactionPageState extends State<TransactionPage> {
+class MapPageState extends State<MapPage> {
   final PolylinePoints _polylinePoints = PolylinePoints();
   late final MapController _mapController;
-  late final TransactionProvider _transactionProvider;
+  late final MapProvider _mapProvider;
   late final BluetoothProvider _bluetoothProvider;
   bool _isRouting = false;
   bool _mapReady = false;
@@ -32,7 +32,7 @@ class TransactionPageState extends State<TransactionPage> {
   void initState() {
     super.initState();
     _mapController = MapController();
-    _transactionProvider = context.read<TransactionProvider>();
+    _mapProvider = context.read<MapProvider>();
     _bluetoothProvider = context.read<BluetoothProvider>();
     _initializePosition();
   }
@@ -66,11 +66,11 @@ class TransactionPageState extends State<TransactionPage> {
       );
 
       if (_currentPosition != null && mounted) {
-        _transactionProvider.updatePosition(
+        _mapProvider.updatePosition(
           LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
         );
         if (_mapReady) {
-          _mapController.move(_transactionProvider.currentPosition!, 15);
+          _mapController.move(_mapProvider.currentPosition!, 15);
         }
       }
     } catch (e) {
@@ -116,7 +116,7 @@ class TransactionPageState extends State<TransactionPage> {
   void _handleMapTap(TapPosition tapPosition, LatLng latLng) async {
     if (!mounted || _isRouting || !_mapReady) return;
 
-    final currentPos = _transactionProvider.currentPosition;
+    final currentPos = _mapProvider.currentPosition;
     if (currentPos == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Current location not available')),
@@ -132,7 +132,7 @@ class TransactionPageState extends State<TransactionPage> {
       final points = _polylinePoints.decodePolyline(route['geometry']);
 
       if (mounted) {
-        _transactionProvider.setRoute(
+        _mapProvider.setRoute(
           latLng,
           points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
           route['distance'] / 1000
@@ -149,23 +149,23 @@ class TransactionPageState extends State<TransactionPage> {
     }
   }
 
-  void _handleTransactionAction(String type) async {
-    if (_transactionProvider.selectedPoint == null) {
+  void _handleEnergyTradeAction(String type) async {
+    if (_mapProvider.selectedPoint == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a destination first')));
       return;
     }
 
-    final energy = _transactionProvider.calculateEnergyRequired(6);
+    final energy = _mapProvider.calculateEnergyRequired(6);
     
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Confirm $type Transaction'),
+        title: Text('Confirm $type Energy Trade'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Distance: ${_transactionProvider.selectedDistance!.toStringAsFixed(2)} km'),
+            Text('Distance: ${_mapProvider.selectedDistance!.toStringAsFixed(2)} km'),
             Text('Estimated Energy: ${energy.toStringAsFixed(2)} kWh'),
             if (_bluetoothProvider.isConnected) ...[
               const SizedBox(height: 8),
@@ -181,14 +181,14 @@ class TransactionPageState extends State<TransactionPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              _transactionProvider.setRoute(
-                _transactionProvider.selectedPoint!,
-                _transactionProvider.routePoints,
-                _transactionProvider.selectedDistance!,
+              _mapProvider.setRoute(
+                _mapProvider.selectedPoint!,
+                _mapProvider.routePoints,
+                _mapProvider.selectedDistance!,
                 type: type
               );
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$type transaction started')));
+                SnackBar(content: Text('$type energy trade route started')));
             },
             child: Text(type),
           ),
@@ -201,7 +201,7 @@ class TransactionPageState extends State<TransactionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transactions'),
+        title: const Text('Map & Navigation'),
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
@@ -209,14 +209,14 @@ class TransactionPageState extends State<TransactionPage> {
           ),
         ],
       ),
-      body: Consumer<TransactionProvider>(
-        builder: (context, transactionProvider, _) {
+      body: Consumer<MapProvider>(
+        builder: (context, mapProvider, _) {
           return Stack(
             children: [
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: transactionProvider.currentPosition ?? const LatLng(-26.2041, 28.0473), // Johannesburg
+                  initialCenter: mapProvider.currentPosition ?? const LatLng(-26.2041, 28.0473), // Johannesburg
                   initialZoom: 15.0,
                   onTap: _handleMapTap,
                   onMapReady: () => setState(() => _mapReady = true),
@@ -228,15 +228,15 @@ class TransactionPageState extends State<TransactionPage> {
                   ),
                   MarkerLayer(
                     markers: [
-                      if (transactionProvider.currentPosition != null)
+                      if (mapProvider.currentPosition != null)
                         Marker(
-                          point: transactionProvider.currentPosition!,
+                          point: mapProvider.currentPosition!,
                           child: const Icon(Icons.location_pin, 
                               color: Colors.blue, size: 40),
                         ),
-                      if (transactionProvider.selectedPoint != null)
+                      if (mapProvider.selectedPoint != null)
                         Marker(
-                          point: transactionProvider.selectedPoint!,
+                          point: mapProvider.selectedPoint!,
                           child: const Icon(Icons.location_pin, 
                               color: Colors.red, size: 40),
                         ),
@@ -244,9 +244,9 @@ class TransactionPageState extends State<TransactionPage> {
                   ),
                   PolylineLayer(
                     polylines: [
-                      if (transactionProvider.routePoints.isNotEmpty)
+                      if (mapProvider.routePoints.isNotEmpty)
                         Polyline(
-                          points: transactionProvider.routePoints,
+                          points: mapProvider.routePoints,
                           color: Colors.blue,
                           strokeWidth: 4.0,
                         ),
@@ -262,7 +262,7 @@ class TransactionPageState extends State<TransactionPage> {
                   child: const Center(child: CircularProgressIndicator()),
                 ),
               
-              // Action buttons
+              // Energy trade action buttons
               Positioned(
                 top: 16,
                 left: 16,
@@ -270,23 +270,23 @@ class TransactionPageState extends State<TransactionPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildActionButton('Buy', Icons.shopping_cart, Colors.green)
+                      child: _buildActionButton('Buy Energy', Icons.shopping_cart, Colors.green)
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: _buildActionButton('Sell', Icons.electric_bolt, Colors.blue)
+                      child: _buildActionButton('Sell Energy', Icons.electric_bolt, Colors.blue)
                     ),
                   ],
                 ),
               ),
               
-              // Distance info
-              if (transactionProvider.selectedDistance != null)
+              // Distance and route info
+              if (mapProvider.selectedDistance != null)
                 Positioned(
                   bottom: 16,
                   left: 16,
                   right: 16,
-                  child: _buildDistanceInfo(transactionProvider),
+                  child: _buildRouteInfo(mapProvider),
                 ),
             ],
           );
@@ -295,7 +295,7 @@ class TransactionPageState extends State<TransactionPage> {
     );
   }
 
-  Widget _buildDistanceInfo(TransactionProvider provider) {
+  Widget _buildRouteInfo(MapProvider provider) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -336,7 +336,7 @@ class TransactionPageState extends State<TransactionPage> {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
-      onPressed: () => _handleTransactionAction(text),
+      onPressed: () => _handleEnergyTradeAction(text.split(' ')[0]), // Extract 'Buy' or 'Sell'
     );
   }
 }
