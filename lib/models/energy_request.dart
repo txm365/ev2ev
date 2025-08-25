@@ -38,17 +38,21 @@ class EnergyRequest {
 
   factory EnergyRequest.fromJson(Map<String, dynamic> json) {
     return EnergyRequest(
-      id: json['id'],
-      buyerId: json['buyer_id'],
-      listingId: json['listing_id'],
+      id: json['id'] ?? '',
+      buyerId: json['buyer_id'] ?? '',
+      listingId: json['listing_id'] ?? '',
       requestedEnergy: (json['requested_energy'] as num).toDouble(),
       offeredPricePerKwh: (json['offered_price_per_kwh'] as num?)?.toDouble(),
       buyerLocationLat: (json['buyer_location_lat'] as num).toDouble(),
       buyerLocationLng: (json['buyer_location_lng'] as num).toDouble(),
       message: json['message'],
-      status: json['status'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      status: json['status'] ?? 'pending',
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']) 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']) 
+          : DateTime.now(),
       listing: json['energy_listings'] != null 
           ? EnergyListing.fromJson(json['energy_listings']) 
           : null,

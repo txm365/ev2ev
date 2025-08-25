@@ -48,10 +48,10 @@ class EnergyTransaction {
 
   factory EnergyTransaction.fromJson(Map<String, dynamic> json) {
     return EnergyTransaction(
-      id: json['id'],
-      requestId: json['request_id'],
-      sellerId: json['seller_id'],
-      buyerId: json['buyer_id'],
+      id: json['id'] ?? '',
+      requestId: json['request_id'] ?? '',
+      sellerId: json['seller_id'] ?? '',
+      buyerId: json['buyer_id'] ?? '',
       energyTransferred: (json['energy_transferred'] as num?)?.toDouble(),
       finalPricePerKwh: (json['final_price_per_kwh'] as num?)?.toDouble(),
       totalAmount: (json['total_amount'] as num?)?.toDouble(),
@@ -61,14 +61,18 @@ class EnergyTransaction {
       sellerLocationLng: (json['seller_location_lng'] as num?)?.toDouble(),
       buyerLocationLat: (json['buyer_location_lat'] as num?)?.toDouble(),
       buyerLocationLng: (json['buyer_location_lng'] as num?)?.toDouble(),
-      status: json['status'],
-      paymentStatus: json['payment_status'],
+      status: json['status'] ?? 'pending',
+      paymentStatus: json['payment_status'] ?? 'pending',
       sellerRating: json['seller_rating'],
       buyerRating: json['buyer_rating'],
       sellerReview: json['seller_review'],
       buyerReview: json['buyer_review'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']) 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']) 
+          : DateTime.now(),
     );
   }
 

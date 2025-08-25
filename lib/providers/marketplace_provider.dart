@@ -1,4 +1,4 @@
-// lib/providers/marketplace_provider.dart - Complete buyer functionality
+// lib/providers/marketplace_provider.dart
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -54,11 +54,571 @@ class MarketplaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Filter listings based on search criteria
+  // ============================================================================
+  // LISTING MANAGEMENT ACTIONS (SELLER FUNCTIONALITY)
+  // ============================================================================
+
+  /// Create a new energy listing and publish to Supabase database
+  Future<bool> createEnergyListing({
+    required double pricePerKwh,
+    required double availableEnergy,
+    required double minEnergySale,
+    required double maxEnergySale,
+    required String vehicleType,
+    required String connectorType,
+    DateTime? availabilityEnd,
+    String? description,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
+        return false;
+      }
+
+      // Get current location
+      final position = await getCurrentLocation();
+      if (position == null) {
+        _setError('Unable to get current location');
+        return false;
+      }
+
+      // Check if user already has an active listing
+      final existingListing = await _supabase
+          .from('energy_listings')
+          .select()
+          .eq('seller_id', userId)
+          .or('status.eq.available,status.eq.paused')
+          .maybeSingle();
+
+      if (existingListing != null) {
+        _setError('You already have an active listing. Delete or edit your current listing first.');
+        return false;
+      }
+
+      // Create the listing data
+      final now = DateTime.now();
+      final listingData = {
+        'seller_id': userId,
+        'price_per_kwh': pricePerKwh,
+        'available_energy': availableEnergy,
+        'min_energy_sale': minEnergySale,
+        'max_energy_sale': maxEnergySale,
+        'location_lat': position.latitude,
+        'location_lng': position.longitude,
+        'location_address': 'Current Location', // Can be enhanced with reverse geocoding
+        'vehicle_type': vehicleType,
+        'connector_type': connectorType,
+        'availability_start': now.toIso8601String(),
+        'availability_end': availabilityEnd?.toIso8601String(),
+        'status': 'available',
+        'description': description,
+        'created_at': now.toIso8601String(),
+        'updated_at': now.toIso8601String(),
+      };
+
+      // Insert into database
+      final response = await _supabase
+          .from('energy_listings')
+          .insert(listingData)
+          .select()
+          .single();
+
+      // Create EnergyListing object and update state
+      _myActiveListing = EnergyListing.fromJson(response);
+      
+      // Start listening for requests
+      _listenForReceivedRequests();
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Energy listing created successfully: ${_myActiveListing!.id}');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error creating listing: $e');
+      _setError('Failed to create listing: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Update an existing energy listing
+  Future<bool> updateEnergyListing({
+    required String listingId,
+    double? pricePerKwh,
+    double? availableEnergy,
+    double? minEnergySale,
+    double? maxEnergySale,
+    String? vehicleType,
+    String? connectorType,
+    DateTime? availabilityEnd,
+    String? description,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
+        return false;
+      }
+
+      // Build update data - only include non-null values
+      final updateData = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (pricePerKwh != null) updateData['price_per_kwh'] = pricePerKwh;
+      if (availableEnergy != null) updateData['available_energy'] = availableEnergy;
+      if (minEnergySale != null) updateData['min_energy_sale'] = minEnergySale;
+      if (maxEnergySale != null) updateData['max_energy_sale'] = maxEnergySale;
+      if (vehicleType != null) updateData['vehicle_type'] = vehicleType;
+      if (connectorType != null) updateData['connector_type'] = connectorType;
+      if (availabilityEnd != null) updateData['availability_end'] = availabilityEnd.toIso8601String();
+      if (description != null) updateData['description'] = description;
+
+      // Update in database with security check
+      final response = await _supabase
+          .from('energy_listings')
+          .update(updateData)
+          .eq('id', listingId)
+          .eq('seller_id', userId) // Security: ensure user owns the listing
+          .select()
+          .single();
+
+      // Update local state
+      _myActiveListing = EnergyListing.fromJson(response);
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Energy listing updated successfully');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error updating listing: $e');
+      _setError('Failed to update listing: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Update listing status (pause/resume/available)
+  Future<bool> updateListingStatus(String status) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null || _myActiveListing == null) {
+        _setError('No active listing found');
+        return false;
+      }
+
+      // Validate status
+      if (!['available', 'paused', 'inactive'].contains(status)) {
+        _setError('Invalid status. Must be: available, paused, or inactive');
+        return false;
+      }
+
+      final response = await _supabase
+          .from('energy_listings')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', _myActiveListing!.id)
+          .eq('seller_id', userId)
+          .select()
+          .single();
+
+      // Update local state
+      _myActiveListing = EnergyListing.fromJson(response);
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Listing status updated to: $status');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error updating listing status: $e');
+      _setError('Failed to update listing status: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Delete the user's active listing
+  Future<bool> deleteMyListing() async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null || _myActiveListing == null) {
+        _setError('No active listing found');
+        return false;
+      }
+
+      // Check if there are any pending requests
+      final pendingRequests = await _supabase
+          .from('energy_requests')
+          .select('id')
+          .eq('listing_id', _myActiveListing!.id)
+          .eq('status', 'pending');
+
+      if (pendingRequests.isNotEmpty) {
+        _setError('Cannot delete listing with pending requests. Please respond to all requests first.');
+        return false;
+      }
+
+      // Delete the listing
+      await _supabase
+          .from('energy_listings')
+          .delete()
+          .eq('id', _myActiveListing!.id)
+          .eq('seller_id', userId);
+
+      // Clear local state
+      _myActiveListing = null;
+      _receivedRequests.clear();
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Listing deleted successfully');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error deleting listing: $e');
+      _setError('Failed to delete listing: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Respond to a buyer's energy request
+  Future<bool> respondToRequest(String requestId, String status) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
+        return false;
+      }
+
+      // Validate status
+      if (!['accepted', 'rejected'].contains(status)) {
+        _setError('Invalid response status. Must be: accepted or rejected');
+        return false;
+      }
+
+      // Update request status
+      await _supabase
+          .from('energy_requests')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', requestId);
+
+      // If accepted, create a transaction record
+      if (status == 'accepted') {
+        final request = _receivedRequests.firstWhere((r) => r.id == requestId);
+        
+        await _supabase
+            .from('energy_transactions')
+            .insert({
+              'request_id': requestId,
+              'seller_id': userId,
+              'buyer_id': request.buyerId,
+              'status': 'pending',
+              'payment_status': 'pending',
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+      }
+
+      // Refresh received requests
+      await _loadReceivedRequests();
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Request $status successfully');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error responding to request: $e');
+      _setError('Failed to respond to request: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ============================================================================
+  // BUYER FUNCTIONALITY - PULLING LISTINGS FROM DATABASE
+  // ============================================================================
+
+  /// Get nearby energy listings with geospatial queries
+  Future<void> getNearbyListings({double radiusKm = 15.0}) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      debugPrint('🔍 Getting nearby listings...');
+      
+      final position = _currentPosition ?? await getCurrentLocation();
+      if (position == null) {
+        _setError('Could not get current location');
+        debugPrint('❌ No location available');
+        return;
+      }
+
+      debugPrint('📍 Current location: ${position.latitude}, ${position.longitude}');
+
+      // Try to use the optimized RPC function first
+      try {
+        debugPrint('🔄 Trying RPC function get_nearby_listings...');
+        final response = await _supabase
+            .rpc('get_nearby_listings', params: {
+              'user_lat': position.latitude,
+              'user_lng': position.longitude,
+              'radius_km': radiusKm,
+              'current_user_id': currentUserId ?? '',
+            });
+
+        if (response != null && response is List) {
+          debugPrint('✅ RPC response received: ${response.length} listings');
+          _nearbyListings = (response as List).map((listing) {
+            listing['seller_name'] = listing['seller_name'] ?? 'Energy Provider';
+            return EnergyListing.fromJson(listing);
+          }).toList();
+        } else {
+          throw Exception('RPC function not available, using fallback');
+        }
+      } catch (e) {
+        // Fallback to basic SQL query
+        debugPrint('⚠️ RPC failed, using fallback query: $e');
+        final fallbackResponse = await _supabase
+            .from('energy_listings')
+            .select('*')
+            .eq('status', 'available')
+            .neq('seller_id', currentUserId ?? '');
+
+        debugPrint('📊 Fallback query returned: ${fallbackResponse.length} total listings');
+
+        _nearbyListings = (fallbackResponse as List).map((listing) {
+          final sellerLat = listing['location_lat'] as double;
+          final sellerLng = listing['location_lng'] as double;
+          final distance = _calculateDistance(
+            position.latitude, position.longitude,
+            sellerLat, sellerLng,
+          );
+          
+          debugPrint('📏 Listing ${listing['id']} distance: ${distance.toStringAsFixed(2)} km');
+          
+          // Add computed fields
+          listing['distance'] = distance;
+          listing['seller_name'] = 'Energy Provider';
+          
+          return EnergyListing.fromJson(listing);
+        }).where((listing) => 
+          listing.distance != null && listing.distance! <= radiusKm
+        ).toList();
+
+        // Sort by distance
+        _nearbyListings.sort((a, b) => 
+          (a.distance ?? 0).compareTo(b.distance ?? 0));
+      }
+
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Final result: ${_nearbyListings.length} nearby listings within ${radiusKm}km');
+      for (var listing in _nearbyListings) {
+        debugPrint('  - ${listing.sellerName}: ${listing.distance?.toStringAsFixed(2)}km, R${listing.pricePerKwh}/kWh, ${listing.availableEnergy}kWh');
+      }
+
+    } catch (e) {
+      debugPrint('❌ Error getting nearby listings: $e');
+      _setError('Failed to load nearby listings: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Create test listings for debugging (temporary method)
+  Future<void> createTestListings() async {
+    try {
+      final position = await getCurrentLocation();
+      if (position == null) return;
+
+      // Create a few test listings around the current location
+      final testListings = [
+        {
+          'seller_id': 'test-seller-1',
+          'price_per_kwh': 2.50,
+          'available_energy': 15.5,
+          'min_energy_sale': 5.0,
+          'max_energy_sale': 15.0,
+          'location_lat': position.latitude + 0.01, // ~1km away
+          'location_lng': position.longitude + 0.01,
+          'location_address': 'Test Location 1',
+          'vehicle_type': 'Electric Car',
+          'connector_type': 'Type 2',
+          'availability_start': DateTime.now().toIso8601String(),
+          'status': 'available',
+          'description': 'Test listing for debugging',
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        {
+          'seller_id': 'test-seller-2', 
+          'price_per_kwh': 3.00,
+          'available_energy': 25.0,
+          'min_energy_sale': 10.0,
+          'max_energy_sale': 25.0,
+          'location_lat': position.latitude - 0.01,
+          'location_lng': position.longitude - 0.01,
+          'location_address': 'Test Location 2',
+          'vehicle_type': 'Electric Van',
+          'connector_type': 'CCS',
+          'availability_start': DateTime.now().toIso8601String(),
+          'status': 'available',
+          'description': 'Another test listing',
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        }
+      ];
+
+      for (var testListing in testListings) {
+        await _supabase
+            .from('energy_listings')
+            .insert(testListing);
+      }
+
+      debugPrint('✅ Created ${testListings.length} test listings');
+      await getNearbyListings();
+      
+    } catch (e) {
+      debugPrint('❌ Error creating test listings: $e');
+    }
+  }
+
+  // HELPER METHODS AND UTILITIES
+  // ============================================================================
+
+  /// Calculate distance between two points using Haversine formula
+  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+    const double earthRadius = 6371; // km
+    
+    final double dLat = _degreesToRadians(lat2 - lat1);
+    final double dLng = _degreesToRadians(lng2 - lng1);
+    
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degreesToRadians(lat1)) * math.cos(_degreesToRadians(lat2)) *
+        math.sin(dLng / 2) * math.sin(dLng / 2);
+    
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * (math.pi / 180);
+  }
+
+  /// Load received requests for seller
+  Future<void> _loadReceivedRequests() async {
+    try {
+      if (_myActiveListing == null) return;
+
+      final response = await _supabase
+          .from('energy_requests')
+          .select('*')
+          .eq('listing_id', _myActiveListing!.id)
+          .order('created_at', ascending: false);
+
+      _receivedRequests = (response as List).map((request) {
+        request['buyer_name'] = 'Buyer';
+        return EnergyRequest.fromJson(request);
+      }).toList();
+
+      notifyListeners();
+
+    } catch (e) {
+      debugPrint('❌ Error loading received requests: $e');
+    }
+  }
+
+  /// Listen for new requests in real-time
+  void _listenForReceivedRequests() {
+    if (_myActiveListing == null) return;
+
+    _supabase
+        .from('energy_requests')
+        .stream(primaryKey: ['id'])
+        .eq('listing_id', _myActiveListing!.id)
+        .listen((data) {
+          _loadReceivedRequests();
+        });
+  }
+
+  /// Get current location with permissions
+  Future<Position?> getCurrentLocation() async {
+    try {
+      _setLoading(true);
+      
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _setError('Location permission denied');
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _setError('Location permissions are permanently denied');
+        return null;
+      }
+
+      _currentPosition = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      _setError(null);
+      return _currentPosition;
+    } catch (e) {
+      _setError('Error getting location: $e');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ============================================================================
+  // FILTERING AND STATE MANAGEMENT
+  // ============================================================================
+
   List<EnergyListing> _getFilteredListings() {
     var filtered = List<EnergyListing>.from(_nearbyListings);
 
-    // Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((listing) {
         final query = _searchQuery.toLowerCase();
@@ -69,24 +629,20 @@ class MarketplaceProvider extends ChangeNotifier {
       }).toList();
     }
 
-    // Filter by vehicle type
     if (_selectedVehicleType != 'all') {
       filtered = filtered.where((listing) => 
         listing.vehicleType.toLowerCase() == _selectedVehicleType.toLowerCase()
       ).toList();
     }
 
-    // Filter by distance
     filtered = filtered.where((listing) => 
       listing.distance == null || listing.distance! <= _maxDistance
     ).toList();
 
-    // Filter by price
     filtered = filtered.where((listing) => 
       listing.pricePerKwh <= _maxPrice
     ).toList();
 
-    // Filter by availability
     if (_showAvailableOnly) {
       filtered = filtered.where((listing) => 
         listing.status == 'available'
@@ -96,7 +652,6 @@ class MarketplaceProvider extends ChangeNotifier {
     return filtered;
   }
 
-  // Update search and filter parameters
   void updateSearchQuery(String query) {
     _searchQuery = query;
     notifyListeners();
@@ -131,22 +686,21 @@ class MarketplaceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Initialize provider
-  Future<void> initialize() async {
-    try {
-      await getCurrentLocation();
-      await _loadMyActiveListing();
-      await getMyRequests();
-      await getNearbyListings();
-      if (_myActiveListing != null) {
-        _listenForReceivedRequests();
-      }
-    } catch (e) {
-      debugPrint('Marketplace initialization error: $e');
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> refreshAll() async {
+    await getCurrentLocation();
+    await getNearbyListings();
+    await _loadMyActiveListing();
+    if (_myActiveListing != null) {
+      await _loadReceivedRequests();
     }
   }
 
-  // Load user's active listing
+  /// Load user's active listing
   Future<void> _loadMyActiveListing() async {
     try {
       final userId = currentUserId;
@@ -161,6 +715,7 @@ class MarketplaceProvider extends ChangeNotifier {
 
       if (response != null) {
         _myActiveListing = EnergyListing.fromJson(response);
+        await _loadReceivedRequests();
         notifyListeners();
       }
     } catch (e) {
@@ -168,507 +723,185 @@ class MarketplaceProvider extends ChangeNotifier {
     }
   }
 
-  // Get current location
-  Future<Position?> getCurrentLocation() async {
+  /// Initialize provider
+  Future<void> initialize() async {
     try {
-      _setLoading(true);
-      
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _setError('Location permission denied');
-          return null;
-        }
+      await getCurrentLocation();
+      await _loadMyActiveListing();
+      await getNearbyListings();
+      if (_myActiveListing != null) {
+        _listenForReceivedRequests();
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        _setError('Location permissions are permanently denied');
-        return null;
-      }
-
-      _currentPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      
-      _setError(null);
-      return _currentPosition;
     } catch (e) {
-      _setError('Error getting location: $e');
-      return null;
-    } finally {
-      _setLoading(false);
+      debugPrint('Marketplace initialization error: $e');
     }
   }
 
-  // Get nearby energy listings with comprehensive test data
-  Future<void> getNearbyListings({double radiusKm = 15.0}) async {
-    try {
-      _setLoading(true);
-      _setError(null);
-
-      final position = _currentPosition ?? await getCurrentLocation();
-      if (position == null) {
-        _setError('Could not get current location');
-        return;
-      }
-
-      // Try database first, fallback to comprehensive test data
-      try {
-        final response = await _supabase
-            .from('energy_listings')
-            .select('*')
-            .eq('status', 'available')
-            .neq('seller_id', currentUserId ?? '');
-
-        if (response.isNotEmpty) {
-          _nearbyListings = (response as List).map((listing) {
-            final sellerLat = listing['location_lat'] as double;
-            final sellerLng = listing['location_lng'] as double;
-            final distance = _calculateDistance(
-              position.latitude, position.longitude,
-              sellerLat, sellerLng,
-            );
-            
-            listing['seller_name'] = 'Energy Provider';
-            listing['distance'] = distance;
-            
-            return EnergyListing.fromJson(listing);
-          }).where((listing) => 
-            listing.distance != null && listing.distance! <= radiusKm
-          ).toList();
-        } else {
-          createComprehensiveTestListings();
-        }
-      } catch (e) {
-        debugPrint('Database error, using comprehensive test data: $e');
-        createComprehensiveTestListings();
-        _setError(null);
-      }
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint('General error, using test data: $e');
-      createComprehensiveTestListings();
-      _setError(null);
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Create comprehensive test listings for realistic buyer experience
-  void createComprehensiveTestListings() {
-    final lat = _currentPosition?.latitude ?? -33.9249;
-    final lng = _currentPosition?.longitude ?? 18.4241;
-
-    _nearbyListings = [
-      // Premium listings
-      EnergyListing(
-        id: 'premium-1',
-        sellerId: 'seller-premium-1',
-        pricePerKwh: 2.85,
-        availableEnergy: 25.0,
-        minEnergySale: 2.0,
-        maxEnergySale: 20.0,
-        locationLat: lat + 0.002,
-        locationLng: lng + 0.001,
-        vehicleType: 'car',
-        connectorType: 'CCS',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'Tesla Model S Plaid - Ultra fast charging available. Premium location with covered parking.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 15)),
-        sellerName: 'Alexandra Tesla',
-        distance: 0.3,
-      ),
-      
-      // Budget-friendly options
-      EnergyListing(
-        id: 'budget-1',
-        sellerId: 'seller-budget-1',
-        pricePerKwh: 1.95,
-        availableEnergy: 12.0,
-        minEnergySale: 1.0,
-        maxEnergySale: 8.0,
-        locationLat: lat + 0.005,
-        locationLng: lng - 0.002,
-        vehicleType: 'car',
-        connectorType: 'Type2',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'Nissan Leaf - Affordable charging rates. Perfect for daily commutes.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        sellerName: 'John Green',
-        distance: 0.6,
-      ),
-
-      // E-bike stations
-      EnergyListing(
-        id: 'bike-1',
-        sellerId: 'seller-bike-1',
-        pricePerKwh: 2.20,
-        availableEnergy: 5.0,
-        minEnergySale: 0.5,
-        maxEnergySale: 3.0,
-        locationLat: lat - 0.001,
-        locationLng: lng + 0.003,
-        vehicleType: 'bike',
-        connectorType: 'Type2',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'E-bike charging hub near university. Quick 30-minute sessions available.',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 45)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 10)),
-        sellerName: 'Campus Energy Hub',
-        distance: 0.4,
-      ),
-
-      // High-capacity commercial
-      EnergyListing(
-        id: 'commercial-1',
-        sellerId: 'seller-commercial-1',
-        pricePerKwh: 3.10,
-        availableEnergy: 50.0,
-        minEnergySale: 5.0,
-        maxEnergySale: 40.0,
-        locationLat: lat + 0.008,
-        locationLng: lng + 0.005,
-        vehicleType: 'car',
-        connectorType: 'CHAdeMO',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'Commercial charging station with rapid DC charging. Ideal for long-distance travel.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
-        sellerName: 'FastCharge Commercial',
-        distance: 1.2,
-      ),
-
-      // Scooter sharing
-      EnergyListing(
-        id: 'scooter-1',
-        sellerId: 'seller-scooter-1',
-        pricePerKwh: 2.40,
-        availableEnergy: 8.0,
-        minEnergySale: 1.0,
-        maxEnergySale: 5.0,
-        locationLat: lat - 0.003,
-        locationLng: lng - 0.001,
-        vehicleType: 'scooter',
-        connectorType: 'Type2',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'Electric scooter charging point. Great for urban mobility and short trips.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 20)),
-        sellerName: 'Urban Mobility Co.',
-        distance: 0.5,
-      ),
-
-      // Community sharing
-      EnergyListing(
-        id: 'community-1',
-        sellerId: 'seller-community-1',
-        pricePerKwh: 2.55,
-        availableEnergy: 18.0,
-        minEnergySale: 2.0,
-        maxEnergySale: 15.0,
-        locationLat: lat + 0.001,
-        locationLng: lng - 0.004,
-        vehicleType: 'car',
-        connectorType: 'CCS',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'BMW i4 shared by local EV community. Friendly neighborhood charging.',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 2)),
-        sellerName: 'Sarah Community',
-        distance: 0.8,
-      ),
-
-      // Workplace charging
-      EnergyListing(
-        id: 'workplace-1',
-        sellerId: 'seller-workplace-1',
-        pricePerKwh: 2.00,
-        availableEnergy: 22.0,
-        minEnergySale: 3.0,
-        maxEnergySale: 18.0,
-        locationLat: lat + 0.006,
-        locationLng: lng + 0.002,
-        vehicleType: 'car',
-        connectorType: 'Type2',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: 'Office building charging station. Available during business hours with security.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 6)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 45)),
-        sellerName: 'Business Park Energy',
-        distance: 0.9,
-      ),
-
-      // Emergency/24h service
-      EnergyListing(
-        id: 'emergency-1',
-        sellerId: 'seller-emergency-1',
-        pricePerKwh: 3.50,
-        availableEnergy: 15.0,
-        minEnergySale: 2.0,
-        maxEnergySale: 12.0,
-        locationLat: lat - 0.002,
-        locationLng: lng + 0.006,
-        vehicleType: 'car',
-        connectorType: 'CCS',
-        availabilityStart: DateTime.now(),
-        status: 'available',
-        description: '24/7 Emergency charging service. Higher rates but always available when you need it most.',
-        createdAt: DateTime.now().subtract(const Duration(hours: 12)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 1)),
-        sellerName: '24h Emergency Energy',
-        distance: 1.1,
-      ),
-    ];
-
-    // Sort by distance
-    _nearbyListings.sort((a, b) => (a.distance ?? double.infinity).compareTo(b.distance ?? double.infinity));
-  }
-
-  // Distance calculation using Haversine formula
-  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    const double earthRadius = 6371;
-    
-    final double dLat = _toRadians(lat2 - lat1);
-    final double dLng = _toRadians(lng2 - lng1);
-    
-    final double a = 
-        math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_toRadians(lat1)) * math.cos(_toRadians(lat2)) *
-        math.sin(dLng / 2) * math.sin(dLng / 2);
-    
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    
-    return earthRadius * c;
-  }
-
-  double _toRadians(double degrees) => degrees * (math.pi / 180);
-
-  // Create energy request with comprehensive validation
+  /// Create an energy request (buyer functionality)
   Future<bool> createEnergyRequest({
     required String listingId,
     required double requestedEnergy,
-    double? offeredPricePerKwh,
+    required double offeredPricePerKwh,
     String? message,
   }) async {
     try {
       _setLoading(true);
       _setError(null);
 
-      // Find the listing to validate request
-      final listing = _nearbyListings.firstWhere(
-        (l) => l.id == listingId,
-        orElse: () => throw Exception('Listing not found'),
-      );
-
-      // Validate request parameters
-      if (requestedEnergy < listing.minEnergySale) {
-        _setError('Minimum energy request is ${listing.minEnergySale} kWh');
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
         return false;
       }
 
-      if (requestedEnergy > listing.maxEnergySale) {
-        _setError('Maximum energy request is ${listing.maxEnergySale} kWh');
-        return false;
-      }
-
-      if (requestedEnergy > listing.availableEnergy) {
-        _setError('Only ${listing.availableEnergy} kWh available');
-        return false;
-      }
-
-      final position = _currentPosition ?? await getCurrentLocation();
+      // Get current location
+      final position = await getCurrentLocation();
       if (position == null) {
-        _setError('Could not get current location');
+        _setError('Unable to get current location');
         return false;
       }
 
-      // Create the request (simulate database operation)
-      final newRequest = EnergyRequest(
-        id: 'req-${DateTime.now().millisecondsSinceEpoch}',
-        buyerId: currentUserId ?? 'buyer-${DateTime.now().millisecondsSinceEpoch}',
-        listingId: listingId,
-        requestedEnergy: requestedEnergy,
-        offeredPricePerKwh: offeredPricePerKwh,
-        buyerLocationLat: position.latitude,
-        buyerLocationLng: position.longitude,
-        message: message,
-        status: 'pending',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        listing: listing,
-        sellerName: listing.sellerName,
-      );
+      // Create the request data
+      final requestData = {
+        'buyer_id': userId,
+        'listing_id': listingId,
+        'requested_energy': requestedEnergy,
+        'offered_price_per_kwh': offeredPricePerKwh,
+        'buyer_location_lat': position.latitude,
+        'buyer_location_lng': position.longitude,
+        'message': message,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
 
-      _myRequests.insert(0, newRequest); // Add to beginning for latest first
+      // Insert into database
+      await _supabase
+          .from('energy_requests')
+          .insert(requestData);
+
+      // Refresh user's requests
+      await getMyRequests();
+      
+      _setError(null);
       notifyListeners();
+      
+      debugPrint('✅ Energy request created successfully');
       return true;
 
     } catch (e) {
-      _setError('Error creating request: ${e.toString()}');
+      debugPrint('❌ Error creating energy request: $e');
+      _setError('Failed to create energy request: $e');
       return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Get my requests (as buyer)
-  Future<void> getMyRequests() async {
+  /// Cancel an energy request (buyer functionality)
+  Future<bool> cancelRequest(String requestId) async {
     try {
       _setLoading(true);
+      _setError(null);
 
       final userId = currentUserId;
       if (userId == null) {
         _setError('User not authenticated');
-        return;
+        return false;
       }
 
-      // In real implementation, this would fetch from database
-      // For now, keep existing requests or create sample data
-      if (_myRequests.isEmpty) {
-        _createSampleRequests();
-      }
+      // Update request status to cancelled
+      await _supabase
+          .from('energy_requests')
+          .update({
+            'status': 'cancelled',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', requestId)
+          .eq('buyer_id', userId); // Security: ensure user owns the request
 
+      // Refresh user's requests
+      await getMyRequests();
+      
+      _setError(null);
       notifyListeners();
+      
+      debugPrint('✅ Energy request cancelled successfully');
+      return true;
+
     } catch (e) {
-      _setError('Error fetching requests: ${e.toString()}');
+      debugPrint('❌ Error cancelling energy request: $e');
+      _setError('Failed to cancel energy request: $e');
+      return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Create sample requests for demonstration
-  void _createSampleRequests() {
-    _myRequests = [
-      EnergyRequest(
-        id: 'sample-req-1',
-        buyerId: currentUserId ?? 'buyer-1',
-        listingId: 'premium-1',
-        requestedEnergy: 8.0,
-        offeredPricePerKwh: null, // Accepted seller's price
-        buyerLocationLat: -33.9249,
-        buyerLocationLng: 18.4241,
-        message: 'Need energy for my morning commute tomorrow',
-        status: 'pending',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 15)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 15)),
-        sellerName: 'Alexandra Tesla',
-      ),
-      EnergyRequest(
-        id: 'sample-req-2',
-        buyerId: currentUserId ?? 'buyer-1',
-        listingId: 'budget-1',
-        requestedEnergy: 5.0,
-        offeredPricePerKwh: 1.80, // Made counter-offer
-        buyerLocationLat: -33.9249,
-        buyerLocationLng: 18.4241,
-        message: 'Can you do a lower rate for a repeat customer?',
-        status: 'accepted',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        sellerName: 'John Green',
-      ),
-    ];
-  }
-
-  // Cancel request (by buyer)
-  Future<bool> cancelRequest(String requestId) async {
+  // Implementation methods for completeness
+  Future<void> getMyRequests() async {
+    // Implementation for loading user's requests
     try {
-      final requestIndex = _myRequests.indexWhere((r) => r.id == requestId);
-      if (requestIndex == -1) return false;
+      final userId = currentUserId;
+      if (userId == null) return;
 
-      final request = _myRequests[requestIndex];
-      if (request.status != 'pending') {
-        _setError('Can only cancel pending requests');
-        return false;
-      }
+      final response = await _supabase
+          .from('energy_requests')
+          .select('*')
+          .eq('buyer_id', userId)
+          .order('created_at', ascending: false);
 
-      // Update status to cancelled
-      _myRequests[requestIndex] = request.copyWith(
-        status: 'cancelled',
-        updatedAt: DateTime.now(),
-      );
+      _myRequests = (response as List).map((request) {
+        request['seller_name'] = 'Seller';
+        return EnergyRequest.fromJson(request);
+      }).toList();
 
       notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading my requests: $e');
+    }
+  }
+
+  Future<void> getMyTransactions() async {
+    // Implementation for loading user's transactions
+    try {
+      final userId = currentUserId;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('energy_transactions')
+          .select('*')
+          .or('seller_id.eq.$userId,buyer_id.eq.$userId')
+          .order('created_at', ascending: false);
+
+      _myTransactions = (response as List).map((transaction) => 
+        EnergyTransaction.fromJson(transaction)
+      ).toList();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading my transactions: $e');
+    }
+  }
+
+  Future<bool> completeTransaction(String transactionId, double energyTransferred) async {
+    // Implementation for completing transactions
+    try {
+      await _supabase
+          .from('energy_transactions')
+          .update({
+            'energy_transferred': energyTransferred,
+            'status': 'completed',
+            'end_time': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', transactionId);
+      
+      await getMyTransactions();
       return true;
     } catch (e) {
-      _setError('Error cancelling request: ${e.toString()}');
+      debugPrint('Error completing transaction: $e');
       return false;
     }
-  }
-
-  // Get request by ID
-  EnergyRequest? getRequestById(String requestId) {
-    try {
-      return _myRequests.firstWhere((r) => r.id == requestId);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Get listing by ID
-  EnergyListing? getListingById(String listingId) {
-    try {
-      return _nearbyListings.firstWhere((l) => l.id == listingId);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Simulate request status updates (would come from real-time subscriptions)
-  void simulateRequestStatusUpdate(String requestId, String newStatus) {
-    final requestIndex = _myRequests.indexWhere((r) => r.id == requestId);
-    if (requestIndex != -1) {
-      _myRequests[requestIndex] = _myRequests[requestIndex].copyWith(
-        status: newStatus,
-        updatedAt: DateTime.now(),
-      );
-      notifyListeners();
-    }
-  }
-
-  // Placeholder methods for seller functionality
-  Future<bool> createEnergyListing({
-    required double pricePerKwh,
-    required double availableEnergy,
-    required double minEnergySale,
-    required double maxEnergySale,
-    required String vehicleType,
-    required String connectorType,
-    DateTime? availabilityEnd,
-    String? description,
-  }) async {
-    // Seller functionality implementation
-    return false;
-  }
-
-  Future<bool> updateListingStatus(String status) async => false;
-  Future<bool> deleteMyListing() async => false;
-  Future<bool> respondToRequest(String requestId, String status) async => false;
-  Future<void> getMyTransactions() async {}
-  Future<bool> completeTransaction(String transactionId, double energyTransferred) async => false;
-  void _listenForReceivedRequests() {}
-
-  // Clear error
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  // Refresh all data
-  Future<void> refreshAll() async {
-    await getCurrentLocation();
-    await getNearbyListings();
-    await getMyRequests();
   }
 }

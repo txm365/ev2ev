@@ -5,27 +5,45 @@ import 'package:flutter/services.dart';
 class CreateListingDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSubmit;
 
-  const CreateListingDialog({super.key, required this.onSubmit});
+  const CreateListingDialog({
+    super.key,
+    required this.onSubmit,
+  });
 
   @override
-  CreateListingDialogState createState() => CreateListingDialogState();
+  State<CreateListingDialog> createState() => _CreateListingDialogState();
 }
 
-class CreateListingDialogState extends State<CreateListingDialog> {
+class _CreateListingDialogState extends State<CreateListingDialog> {
   final _formKey = GlobalKey<FormState>();
   final _priceController = TextEditingController();
   final _availableEnergyController = TextEditingController();
   final _minEnergyController = TextEditingController();
   final _maxEnergyController = TextEditingController();
   final _descriptionController = TextEditingController();
-
-  String _selectedVehicleType = 'car';
-  String _selectedConnectorType = 'CCS';
+  
+  String _selectedVehicleType = 'Electric Car';
+  String _selectedConnectorType = 'Type 2';
   DateTime? _availabilityEnd;
   bool _isSubmitting = false;
 
-  final List<String> _vehicleTypes = ['car', 'bike', 'scooter'];
-  final List<String> _connectorTypes = ['CCS', 'CHAdeMO', 'Type2'];
+  final List<String> _vehicleTypes = [
+    'Electric Car',
+    'Electric Van',
+    'Electric Truck',
+    'Electric Bus',
+    'Electric Motorcycle',
+    'Hybrid Vehicle',
+  ];
+
+  final List<String> _connectorTypes = [
+    'Type 2',
+    'CCS',
+    'CHAdeMO',
+    'Tesla Supercharger',
+    'Type 1',
+    'CEE',
+  ];
 
   @override
   void dispose() {
@@ -41,299 +59,416 @@ class CreateListingDialogState extends State<CreateListingDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
               children: [
-                // Header
-                Row(
-                  children: [
-                    const Icon(Icons.sell, size: 32, color: Colors.green),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Create Energy Listing',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Price per kWh
-                TextFormField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Price per kWh (R)',
-                    prefixIcon: Icon(Icons.attach_money),
-                    border: OutlineInputBorder(),
-                    helperText: 'Set your price per kilowatt-hour',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a price';
-                    }
-                    final price = double.tryParse(value);
-                    if (price == null || price <= 0) {
-                      return 'Please enter a valid price';
-                    }
-                    if (price > 10) {
-                      return 'Price seems too high (max R10/kWh)';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Available Energy
-                TextFormField(
-                  controller: _availableEnergyController,
-                  decoration: const InputDecoration(
-                    labelText: 'Available Energy (kWh)',
-                    prefixIcon: Icon(Icons.battery_full),
-                    border: OutlineInputBorder(),
-                    helperText: 'How much energy you can share',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}')),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter available energy';
-                    }
-                    final energy = double.tryParse(value);
-                    if (energy == null || energy <= 0) {
-                      return 'Please enter a valid amount';
-                    }
-                    if (energy > 100) {
-                      return 'Amount seems too high (max 100 kWh)';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Min/Max Energy Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _minEnergyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Min Sale (kWh)',
-                          prefixIcon: Icon(Icons.minimize),
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}')),
-                        ],
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Required';
-                          }
-                          final min = double.tryParse(value);
-                          if (min == null || min <= 0) {
-                            return 'Invalid amount';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _maxEnergyController,
-                        decoration: const InputDecoration(
-                          labelText: 'Max Sale (kWh)',
-                          prefixIcon: Icon(Icons.add),
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}')),
-                        ],
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Required';
-                          }
-                          final max = double.tryParse(value);
-                          final min = double.tryParse(_minEnergyController.text);
-                          if (max == null || max <= 0) {
-                            return 'Invalid amount';
-                          }
-                          if (min != null && max < min) {
-                            return 'Must be >= min';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Vehicle Type
-                DropdownButtonFormField<String>(
-                  value: _selectedVehicleType,
-                  decoration: const InputDecoration(
-                    labelText: 'Vehicle Type',
-                    prefixIcon: Icon(Icons.directions_car),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _vehicleTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type.toUpperCase()),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedVehicleType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Connector Type
-                DropdownButtonFormField<String>(
-                  value: _selectedConnectorType,
-                  decoration: const InputDecoration(
-                    labelText: 'Connector Type',
-                    prefixIcon: Icon(Icons.electrical_services),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _connectorTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedConnectorType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Availability End (Optional)
-                InkWell(
-                  onTap: _selectAvailabilityEnd,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Available Until (Optional)',
-                      prefixIcon: Icon(Icons.schedule),
-                      border: OutlineInputBorder(),
-                      helperText: 'Leave empty for no time limit',
-                    ),
-                    child: Text(
-                      _availabilityEnd != null
-                          ? '${_availabilityEnd!.day}/${_availabilityEnd!.month}/${_availabilityEnd!.year} '
-                            '${_availabilityEnd!.hour.toString().padLeft(2, '0')}:'
-                            '${_availabilityEnd!.minute.toString().padLeft(2, '0')}'
-                          : 'Tap to select date and time',
-                      style: TextStyle(
-                        color: _availabilityEnd != null ? null : Colors.grey,
-                      ),
-                    ),
+                const Icon(Icons.add_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Create Energy Listing',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Description
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (Optional)',
-                    prefixIcon: Icon(Icons.description),
-                    border: OutlineInputBorder(),
-                    helperText: 'Additional details for buyers',
-                  ),
-                  maxLines: 3,
-                  maxLength: 200,
-                ),
-                const SizedBox(height: 24),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitListing,
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Create Listing'),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 24),
+            
+            // Form
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Pricing Section
+                      _buildSectionHeader('Pricing & Energy'),
+                      const SizedBox(height: 12),
+                      
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _priceController,
+                              label: 'Price per kWh',
+                              prefix: 'R ',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Price is required';
+                                }
+                                final price = double.tryParse(value);
+                                if (price == null || price <= 0) {
+                                  return 'Enter valid price';
+                                }
+                                if (price > 10) {
+                                  return 'Price seems too high';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _availableEnergyController,
+                              label: 'Available Energy',
+                              suffix: 'kWh',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Energy amount required';
+                                }
+                                final energy = double.tryParse(value);
+                                if (energy == null || energy <= 0) {
+                                  return 'Enter valid amount';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _minEnergyController,
+                              label: 'Minimum Sale',
+                              suffix: 'kWh',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Minimum required';
+                                }
+                                final min = double.tryParse(value);
+                                if (min == null || min <= 0) {
+                                  return 'Enter valid minimum';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _maxEnergyController,
+                              label: 'Maximum Sale',
+                              suffix: 'kWh',
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Maximum required';
+                                }
+                                final max = double.tryParse(value);
+                                final min = double.tryParse(_minEnergyController.text);
+                                if (max == null || max <= 0) {
+                                  return 'Enter valid maximum';
+                                }
+                                if (min != null && max < min) {
+                                  return 'Max must be ≥ min';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Vehicle Information Section
+                      _buildSectionHeader('Vehicle Information'),
+                      const SizedBox(height: 12),
+                      
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdown(
+                              label: 'Vehicle Type',
+                              value: _selectedVehicleType,
+                              items: _vehicleTypes,
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedVehicleType = value!;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDropdown(
+                              label: 'Connector Type',
+                              value: _selectedConnectorType,
+                              items: _connectorTypes,
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedConnectorType = value!;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Availability Section
+                      _buildSectionHeader('Availability'),
+                      const SizedBox(height: 12),
+                      
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.access_time, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Available until:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _availabilityEnd != null
+                                        ? '${_availabilityEnd!.day}/${_availabilityEnd!.month}/${_availabilityEnd!.year} at ${_availabilityEnd!.hour.toString().padLeft(2, '0')}:${_availabilityEnd!.minute.toString().padLeft(2, '0')}'
+                                        : 'No end time set (available indefinitely)',
+                                    style: TextStyle(
+                                      color: _availabilityEnd != null ? Colors.black87 : Colors.grey[600],
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _selectAvailabilityEnd,
+                                  child: Text(_availabilityEnd != null ? 'Change' : 'Set End Time'),
+                                ),
+                                if (_availabilityEnd != null)
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _availabilityEnd = null;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.clear, size: 20),
+                                    tooltip: 'Remove end time',
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Description Section
+                      _buildSectionHeader('Description (Optional)'),
+                      const SizedBox(height: 12),
+                      
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 3,
+                        maxLength: 200,
+                        decoration: InputDecoration(
+                          hintText: 'Add details about your energy offering, location specifics, or any special requirements...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.green, width: 2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            // Action Buttons
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _handleSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Create Listing'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? prefix,
+    String? suffix,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      inputFormatters: keyboardType == const TextInputType.numberWithOptions(decimal: true)
+          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+          : null,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixText: prefix,
+        suffixText: suffix,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.green, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              items: items.map((item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              }).toList(),
+              onChanged: onChanged,
+              isExpanded: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _selectAvailabilityEnd() async {
-    final date = await showDatePicker(
+    final now = DateTime.now();
+    final selectedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: _availabilityEnd ?? now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
     );
 
-    if (date != null && mounted) {
-      final time = await showTimePicker(
+    if (selectedDate != null) {
+      final selectedTime = await showTimePicker(
         context: context,
-        initialTime: TimeOfDay.now(),
+        initialTime: TimeOfDay.fromDateTime(_availabilityEnd ?? now.add(const Duration(hours: 1))),
       );
 
-      if (time != null) {
+      if (selectedTime != null) {
         setState(() {
           _availabilityEnd = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            selectedTime.hour,
+            selectedTime.minute,
           );
         });
       }
     }
   }
 
-  void _submitListing() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -348,20 +483,25 @@ class CreateListingDialogState extends State<CreateListingDialog> {
         'vehicleType': _selectedVehicleType,
         'connectorType': _selectedConnectorType,
         'availabilityEnd': _availabilityEnd,
-        'description': _descriptionController.text.isNotEmpty 
-            ? _descriptionController.text 
-            : null,
+        'description': _descriptionController.text.trim().isEmpty 
+            ? null 
+            : _descriptionController.text.trim(),
       };
 
       widget.onSubmit(data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
       setState(() {
         _isSubmitting = false;
       });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

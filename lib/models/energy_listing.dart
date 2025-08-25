@@ -46,8 +46,8 @@ class EnergyListing {
 
   factory EnergyListing.fromJson(Map<String, dynamic> json) {
     return EnergyListing(
-      id: json['id'],
-      sellerId: json['seller_id'],
+      id: json['id'] ?? '',
+      sellerId: json['seller_id'] ?? '',
       pricePerKwh: (json['price_per_kwh'] as num).toDouble(),
       availableEnergy: (json['available_energy'] as num).toDouble(),
       minEnergySale: (json['min_energy_sale'] as num).toDouble(),
@@ -55,16 +55,22 @@ class EnergyListing {
       locationLat: (json['location_lat'] as num).toDouble(),
       locationLng: (json['location_lng'] as num).toDouble(),
       locationAddress: json['location_address'],
-      vehicleType: json['vehicle_type'],
-      connectorType: json['connector_type'],
-      availabilityStart: DateTime.parse(json['availability_start']),
+      vehicleType: json['vehicle_type'] ?? '',
+      connectorType: json['connector_type'] ?? '',
+      availabilityStart: json['availability_start'] != null 
+          ? DateTime.parse(json['availability_start']) 
+          : DateTime.now(),
       availabilityEnd: json['availability_end'] != null 
           ? DateTime.parse(json['availability_end']) 
           : null,
-      status: json['status'],
+      status: json['status'] ?? 'available',
       description: json['description'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']) 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']) 
+          : DateTime.now(),
       sellerName: json['seller_name'],
       distance: (json['distance'] as num?)?.toDouble(),
     );
