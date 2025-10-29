@@ -2,13 +2,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
-import 'dashboard_page.dart';
-import 'marketplace_screen.dart';
-import 'map_page.dart';
-import 'profile_screen.dart';
-import 'bluetooth_scan_page.dart';
-import '../providers/marketplace_provider.dart';
+
+// Explicit relative imports
+import './dashboard_page.dart';
+import '../screens/marketplace_screen.dart'; 
+import './map_page.dart';
+import './profile_screen.dart';
+import './bluetooth_scan_page.dart';
+import '../providers/marketplace_provider.dart' as mp;
 import '../providers/bluetooth_provider.dart' as bt;
+
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -89,590 +92,227 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
     
     final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
     
-    // Check if we should auto-route to dashboard
-    if (bluetoothProvider.shouldAutoRouteToDashboard() && 
-        !_hasShownConnectionSuccessDialog &&
+    // Auto-route to Bluetooth scan page when connected successfully
+    if (bluetoothProvider.isConnected && 
+        !_hasShownConnectionSuccessDialog && 
         _selectedIndex != 0) {
-      
       _hasShownConnectionSuccessDialog = true;
       
-      // Show success notification and auto-navigate
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showConnectionSuccessAndNavigate(bluetoothProvider);
-        }
-      });
+      // Show success dialog
+      _showConnectionSuccessDialog();
     }
     
-    // Reset the flag if connection is lost
+    // Reset flag when disconnected
     if (!bluetoothProvider.isConnected) {
       _hasShownConnectionSuccessDialog = false;
     }
   }
 
-  void _showConnectionSuccessAndNavigate(bt.BluetoothProvider bluetoothProvider) {
-    if (!mounted) return;
-    
-    // Show a brief success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+  void _showConnectionSuccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Device Connected Successfully!',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text('Connected to ${bluetoothProvider.connectedDevice?.platformName ?? "device"}'),
-                ],
-              ),
-            ),
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Connected Successfully'),
           ],
         ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'View',
-          textColor: Colors.white,
-          onPressed: () => _navigateToDashboard(),
+        content: const Text(
+          'Your EV is now connected and ready for energy trading. You can view real-time data on the Dashboard.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to dashboard
+              _onItemTapped(0);
+            },
+            child: const Text('View Dashboard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
-    
-    // Auto-navigate to dashboard after a short delay
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted && _selectedIndex != 0) {
-        _navigateToDashboard();
-      }
-    });
-  }
-
-  void _navigateToDashboard() {
-    if (!mounted) return;
-    
-    setState(() => _selectedIndex = 0);
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.resumed && mounted) {
-      // App returned to foreground, check for auto-reconnection
-      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-      if (!bluetoothProvider.isConnected && bluetoothProvider.autoConnectionEnabled) {
-        bluetoothProvider.attemptAutoReconnect();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    if (mounted) {
-      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-      bluetoothProvider.removeListener(_handleBluetoothStateChanges);
-    }
-    
-    _pageController.dispose();
-    _fabAnimationController.dispose();
-    super.dispose();
-  }
-
-  void _onItemTapped(int index) {
-    if (_selectedIndex != index) {
-      setState(() => _selectedIndex = index);
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateFabVisibility();
-    }
-  }
-
-  void _onPageChanged(int index) {
-    if (_selectedIndex != index) {
-      setState(() => _selectedIndex = index);
-      _updateFabVisibility();
-    }
   }
 
   void _updateFabVisibility() {
-    if (_selectedIndex == 1) { // Marketplace page
+    if (_selectedIndex == 1) { // Show on Marketplace page
       _fabAnimationController.forward();
     } else {
       _fabAnimationController.reverse();
     }
   }
 
-  void _showQuickActions() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          maxChildSize: 0.9,
-          minChildSize: 0.4,
-          builder: (context, scrollController) => Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Add your quick action buttons here
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Create Listing'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    _fabAnimationController.dispose();
+    
+    // Remove listener safely
+    try {
+      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
+      bluetoothProvider.removeListener(_handleBluetoothStateChanges);
+    } catch (e) {
+      // Provider might not be available during disposal
+      debugPrint('Error removing listener: $e');
+    }
+    
+    super.dispose();
   }
 
-  void _showBluetoothActions(bt.BluetoothProvider bluetoothProvider) {
-    if (bluetoothProvider.isConnected) {
-      // Show connected device dialog with options
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Bluetooth Device'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text('Connected to:'),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                bluetoothProvider.connectedDevice!.platformName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (bluetoothProvider.isDataStreaming) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.stream, size: 16, color: Colors.green.shade700),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Data Streaming',
-                        style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                'Vehicle: ${bluetoothProvider.vehicleName}',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                
-                try {
-                  await bluetoothProvider.disconnect();
-                  
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Device disconnected successfully'),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Disconnect failed: $e'),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                    
-                    // Try force disconnect if normal disconnect fails
-                    try {
-                      await bluetoothProvider.forceDisconnect();
-                    } catch (forceError) {
-                      debugPrint('Force disconnect also failed: $forceError');
-                    }
-                  }
-                }
-              },
-              child: const Text('Disconnect'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
-                );
-              },
-              child: const Text('Manage'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _navigateToDashboard();
-              },
-              child: const Text('View Dashboard'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Navigate to Bluetooth scan page with auto-features
-      bluetoothProvider.resetUserDisconnectFlag();
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const BluetoothScanPage()),
-      );
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.resumed) {
+      // Refresh marketplace data when app returns to foreground
+      if (_selectedIndex == 1) {
+        try {
+          final marketplaceProvider = Provider.of<mp.MarketplaceProvider>(context, listen: false);
+          marketplaceProvider.refreshAll();
+        } catch (e) {
+          debugPrint('Error refreshing marketplace: $e');
+        }
+      }
     }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      _updateFabVisibility();
+    });
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _selectedIndex = index;
+      _updateFabVisibility();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // Connection status bar (shows when connected)
-          Consumer<bt.BluetoothProvider>(
-            builder: (context, bluetoothProvider, child) {
-              if (bluetoothProvider.isConnected) {
-                return _buildConnectionStatusBar(bluetoothProvider);
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        children: _pages,
+      ),
+      bottomNavigationBar: Consumer2<bt.BluetoothProvider, mp.MarketplaceProvider>(
+        builder: (context, bluetoothProvider, marketplaceProvider, child) {
+          // Calculate badge count for marketplace (pending requests received) - WITH NULL SAFETY
+          final receivedRequests = marketplaceProvider.receivedRequests;
+          final pendingRequestsCount = receivedRequests
+              .where((r) => r.status == 'pending')
+              .length;
+
+          return BottomNavigationBar(
+            items: _navItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              
+              // Add badge to marketplace if there are pending requests
+              if (index == 1 && pendingRequestsCount > 0) {
+                return BottomNavigationBarItem(
+                  icon: badges.Badge(
+                    badgeContent: Text(
+                      pendingRequestsCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                    child: item.icon,
+                  ),
+                  activeIcon: badges.Badge(
+                    badgeContent: Text(
+                      pendingRequestsCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                    child: item.activeIcon,
+                  ),
+                  label: item.label,
+                );
               }
-              return const SizedBox.shrink();
-            },
-          ),
-          
-          // Main page view
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              children: _pages,
-            ),
-          ),
-        ],
-      ),
-      
-      // Floating Action Button (shows only on marketplace page)
-      floatingActionButton: AnimatedBuilder(
-        animation: _fabAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _fabAnimation.value,
-            child: _fabAnimation.value > 0
-                ? FloatingActionButton.extended(
-                    onPressed: _showQuickActions,
-                    icon: const Icon(Icons.add),
-                    label: const Text('List Energy'),
-                    backgroundColor: Theme.of(context).primaryColor,
-                  )
-                : const SizedBox.shrink(),
+              
+              return item;
+            }).toList(),
+            currentIndex: _selectedIndex,
+            selectedItemColor: Theme.of(context).primaryColor,
+            unselectedItemColor: Colors.grey,
+            type: BottomNavigationBarType.fixed,
+            onTap: _onItemTapped,
           );
         },
       ),
-      
-      // Enhanced bottom navigation bar
-      bottomNavigationBar: Consumer<bt.BluetoothProvider>(
-        builder: (context, bluetoothProvider, child) {
-          return Container(
-            decoration: const BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BottomNavigationBar(
-                  items: _navItems.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final icon = _selectedIndex == index ? item.activeIcon! : item.icon;
-                    
-                    // Add special handling for marketplace with badges and map with connection indicator
-                    if (index == 1) { // Marketplace
-                      return BottomNavigationBarItem(
-                        icon: Consumer<MarketplaceProvider>(
-                          builder: (context, marketplaceProvider, child) {
-                            final hasNotifications = marketplaceProvider.receivedRequests.isNotEmpty;
-                            return hasNotifications
-                                ? badges.Badge(
-                                    badgeContent: Text(
-                                      marketplaceProvider.receivedRequests.length.toString(),
-                                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                                    ),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
-                                      decoration: BoxDecoration(
-                                        color: _selectedIndex == index 
-                                          ? Colors.blue.withValues(alpha: 0.1)
-                                          : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: icon,
-                                    ),
-                                  )
-                                : AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
-                                    decoration: BoxDecoration(
-                                      color: _selectedIndex == index 
-                                        ? Colors.blue.withValues(alpha: 0.1)
-                                        : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: icon,
-                                  );
-                          },
-                        ),
-                        activeIcon: Consumer<MarketplaceProvider>(
-                          builder: (context, marketplaceProvider, child) {
-                            final hasNotifications = marketplaceProvider.receivedRequests.isNotEmpty;
-                            return hasNotifications
-                                ? badges.Badge(
-                                    badgeContent: Text(
-                                      marketplaceProvider.receivedRequests.length.toString(),
-                                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                                    ),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: icon,
-                                    ),
-                                  )
-                                : AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: icon,
-                                  );
-                          },
-                        ),
-                        label: item.label!,
-                      );
-                    } else if (index == 2) { // Map with connection indicator
-                      return BottomNavigationBarItem(
-                        icon: Stack(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
-                              decoration: BoxDecoration(
-                                color: _selectedIndex == index 
-                                  ? Colors.blue.withValues(alpha: 0.1)
-                                  : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: icon,
-                            ),
-                            if (bluetoothProvider.isConnected)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 8,
-                                    minHeight: 8,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        activeIcon: Stack(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: icon,
-                            ),
-                            if (bluetoothProvider.isConnected)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 8,
-                                    minHeight: 8,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        label: item.label!,
-                      );
-                    }
-                    
-                    // Default handling for other tabs
-                    return BottomNavigationBarItem(
-                      icon: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: EdgeInsets.all(_selectedIndex == index ? 8 : 4),
-                        decoration: BoxDecoration(
-                          color: _selectedIndex == index 
-                            ? Colors.blue.withValues(alpha: 0.1)
-                            : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: icon,
-                      ),
-                      activeIcon: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: icon,
-                      ),
-                      label: item.label!,
-                    );
-                  }).toList(),
-                  currentIndex: _selectedIndex,
-                  selectedItemColor: Theme.of(context).primaryColor,
-                  unselectedItemColor: Colors.grey,
-                  type: BottomNavigationBarType.fixed,
-                  onTap: _onItemTapped,
-                ),
-              ],
-            ),
-          );
-        },
+      floatingActionButton: ScaleTransition(
+        scale: _fabAnimation,
+        child: Consumer<mp.MarketplaceProvider>(
+          builder: (context, provider, child) {
+            return FloatingActionButton.extended(
+              onPressed: () {
+                // Navigate to create listing or show quick actions
+                _showMarketplaceQuickActions(provider);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Quick Action'),
+              backgroundColor: Theme.of(context).primaryColor,
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildConnectionStatusBar(bt.BluetoothProvider bluetoothProvider) {
-    return GestureDetector(
-      onTap: () => _showBluetoothActions(bluetoothProvider),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.green.shade50,
-        child: Row(
+  void _showMarketplaceQuickActions(mp.MarketplaceProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.bluetooth_connected,
-              size: 16,
-              color: Colors.green.shade700,
+            const Text(
+              'Quick Actions',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Connected to ${bluetoothProvider.connectedDevice?.platformName ?? "device"}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.add_circle, color: Colors.green),
+              title: const Text('Create Energy Listing'),
+              subtitle: const Text('Sell your excess energy'),
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to create listing - trigger the dialog in marketplace screen
+              },
             ),
-            if (bluetoothProvider.isDataStreaming) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade200,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'STREAMING',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.green.shade800,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Icon(
-              Icons.keyboard_arrow_up,
-              size: 16,
-              color: Colors.green.shade700,
+            ListTile(
+              leading: const Icon(Icons.search, color: Colors.blue),
+              title: const Text('Find Energy Nearby'),
+              subtitle: const Text('Browse available listings'),
+              onTap: () {
+                Navigator.pop(context);
+                provider.getNearbyListings();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.refresh, color: Colors.orange),
+              title: const Text('Refresh Marketplace'),
+              subtitle: const Text('Update listings and requests'),
+              onTap: () {
+                Navigator.pop(context);
+                provider.refreshAll();
+              },
             ),
           ],
         ),

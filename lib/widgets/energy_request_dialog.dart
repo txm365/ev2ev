@@ -25,6 +25,7 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
 
   bool _isSubmitting = false;
   bool _useListingPrice = true;
+  
   double get _estimatedCost {
     final energy = double.tryParse(_requestedEnergyController.text) ?? 0;
     final price = _useListingPrice 
@@ -152,62 +153,45 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,1}')),
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                   ],
-                  onChanged: (value) => setState(() {}),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter energy amount';
                     }
                     final energy = double.tryParse(value);
-                    if (energy == null || energy <= 0) {
-                      return 'Please enter a valid amount';
+                    if (energy == null) {
+                      return 'Please enter a valid number';
                     }
                     if (energy < widget.listing.minEnergySale) {
-                      return 'Minimum ${widget.listing.minEnergySale} kWh';
+                      return 'Minimum is ${widget.listing.minEnergySale} kWh';
                     }
                     if (energy > widget.listing.maxEnergySale) {
-                      return 'Maximum ${widget.listing.maxEnergySale} kWh';
+                      return 'Maximum is ${widget.listing.maxEnergySale} kWh';
                     }
                     if (energy > widget.listing.availableEnergy) {
-                      return 'Only ${widget.listing.availableEnergy} kWh available';
+                      return 'Seller only has ${widget.listing.availableEnergy} kWh available';
                     }
                     return null;
                   },
+                  onChanged: (value) => setState(() {}),
                 ),
                 const SizedBox(height: 16),
 
-                // Price Options
-                Text(
-                  'Price per kWh',
-                  style: Theme.of(context).textTheme.titleMedium,
+                // Price Section
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _useListingPrice,
+                      onChanged: (value) {
+                        setState(() {
+                          _useListingPrice = value ?? true;
+                        });
+                      },
+                    ),
+                    const Text('Use seller\'s price'),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                
-                RadioListTile<bool>(
-                  title: Text('Accept seller\'s price (R${widget.listing.pricePerKwh.toStringAsFixed(2)}/kWh)'),
-                  value: true,
-                  groupValue: _useListingPrice,
-                  onChanged: (value) {
-                    setState(() {
-                      _useListingPrice = value!;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                ),
-                
-                RadioListTile<bool>(
-                  title: const Text('Make a counter offer'),
-                  value: false,
-                  groupValue: _useListingPrice,
-                  onChanged: (value) {
-                    setState(() {
-                      _useListingPrice = value!;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                ),
-
                 if (!_useListingPrice) ...[
                   const SizedBox(height: 8),
                   TextFormField(
@@ -216,12 +200,12 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
                       labelText: 'Your Offered Price (R/kWh)',
                       prefixIcon: Icon(Icons.attach_money),
                       border: OutlineInputBorder(),
+                      helperText: 'Negotiate a different price',
                     ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                     ],
-                    onChanged: (value) => setState(() {}),
                     validator: (value) {
                       if (!_useListingPrice) {
                         if (value == null || value.isEmpty) {
@@ -234,6 +218,7 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
                       }
                       return null;
                     },
+                    onChanged: (value) => setState(() {}),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -316,7 +301,7 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
+        color: Colors.blue.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue),
       ),
@@ -339,10 +324,12 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
     });
 
     try {
+      // ✅ FIX: Include the listingId in the data map!
       final data = {
+        'listingId': widget.listing.id,  // ✅ THIS WAS MISSING - THE KEY FIX!
         'requestedEnergy': double.parse(_requestedEnergyController.text),
         'offeredPricePerKwh': _useListingPrice 
-            ? null 
+            ? widget.listing.pricePerKwh  // Use actual listing price
             : double.parse(_offeredPriceController.text),
         'message': _messageController.text.isNotEmpty 
             ? _messageController.text 
@@ -351,10 +338,14 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
 
       widget.onSubmit(data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isSubmitting = false;
       });

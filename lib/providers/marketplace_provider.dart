@@ -404,7 +404,7 @@ class MarketplaceProvider extends ChangeNotifier {
 
         if (response != null && response is List) {
           debugPrint('✅ RPC response received: ${response.length} listings');
-          _nearbyListings = (response as List).map((listing) {
+          _nearbyListings = response.map<EnergyListing>((listing) {
             listing['seller_name'] = listing['seller_name'] ?? 'Energy Provider';
             return EnergyListing.fromJson(listing);
           }).toList();
@@ -422,7 +422,7 @@ class MarketplaceProvider extends ChangeNotifier {
 
         debugPrint('📊 Fallback query returned: ${fallbackResponse.length} total listings');
 
-        _nearbyListings = (fallbackResponse as List).map((listing) {
+        _nearbyListings = fallbackResponse.map<EnergyListing>((listing) {
           final sellerLat = listing['location_lat'] as double;
           final sellerLng = listing['location_lng'] as double;
           final distance = _calculateDistance(
@@ -462,64 +462,237 @@ class MarketplaceProvider extends ChangeNotifier {
     }
   }
 
-  /// Create test listings for debugging (temporary method)
-  Future<void> createTestListings() async {
+  /// Create an energy request (buyer functionality) - IMPROVED VERSION
+  Future<bool> createEnergyRequest({
+    required String listingId,
+    required double requestedEnergy,
+    required double offeredPricePerKwh,
+    String? message,
+  }) async {
     try {
-      final position = await getCurrentLocation();
-      if (position == null) return;
+      _setLoading(true);
+      _setError(null);
 
-      // Create a few test listings around the current location
-      final testListings = [
-        {
-          'seller_id': 'test-seller-1',
-          'price_per_kwh': 2.50,
-          'available_energy': 15.5,
-          'min_energy_sale': 5.0,
-          'max_energy_sale': 15.0,
-          'location_lat': position.latitude + 0.01, // ~1km away
-          'location_lng': position.longitude + 0.01,
-          'location_address': 'Test Location 1',
-          'vehicle_type': 'Electric Car',
-          'connector_type': 'Type 2',
-          'availability_start': DateTime.now().toIso8601String(),
-          'status': 'available',
-          'description': 'Test listing for debugging',
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        {
-          'seller_id': 'test-seller-2', 
-          'price_per_kwh': 3.00,
-          'available_energy': 25.0,
-          'min_energy_sale': 10.0,
-          'max_energy_sale': 25.0,
-          'location_lat': position.latitude - 0.01,
-          'location_lng': position.longitude - 0.01,
-          'location_address': 'Test Location 2',
-          'vehicle_type': 'Electric Van',
-          'connector_type': 'CCS',
-          'availability_start': DateTime.now().toIso8601String(),
-          'status': 'available',
-          'description': 'Another test listing',
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }
-      ];
-
-      for (var testListing in testListings) {
-        await _supabase
-            .from('energy_listings')
-            .insert(testListing);
+      // Validate user authentication
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
+        debugPrint('❌ Error: User not authenticated');
+        return false;
       }
 
-      debugPrint('✅ Created ${testListings.length} test listings');
-      await getNearbyListings();
+      // Validate listingId is not empty
+      if (listingId.isEmpty) {
+        _setError('Invalid listing ID');
+        debugPrint('❌ Error: Empty listing ID provided');
+        return false;
+      }
+
+      debugPrint('🔄 Creating energy request...');
+      debugPrint('   📝 Listing ID: $listingId');
+      debugPrint('   👤 User ID: $userId');
+      debugPrint('   ⚡ Requested Energy: $requestedEnergy kWh');
+      debugPrint('   💰 Offered Price: R$offeredPricePerKwh/kWh');
+
+      // Get current location
+      final position = await getCurrentLocation();
+      if (position == null) {
+        _setError('Unable to get current location. Please enable location services.');
+        debugPrint('❌ Error: Could not get location');
+        return false;
+      }
+
+      debugPrint('📍 Location obtained: ${position.latitude}, ${position.longitude}');
+
+      // Create the request data
+      final requestData = {
+        'buyer_id': userId,
+        'listing_id': listingId,
+        'requested_energy': requestedEnergy,
+        'offered_price_per_kwh': offeredPricePerKwh,
+        'buyer_location_lat': position.latitude,
+        'buyer_location_lng': position.longitude,
+        'message': message,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      debugPrint('📤 Sending request data to database...');
+      debugPrint('   Data: $requestData');
+
+      // Insert into database with .select() to get the response
+      final response = await _supabase
+          .from('energy_requests')
+          .insert(requestData)
+          .select()
+          .single();
+
+      debugPrint('✅ Database response received');
+      debugPrint('   Request ID: ${response['id']}');
+      debugPrint('   Status: ${response['status']}');
+
+      // Refresh user's requests
+      await getMyRequests();
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Energy request created successfully!');
+      return true;
+
+    } on PostgrestException catch (e) {
+      // Handle Supabase-specific errors
+      debugPrint('❌ Supabase Error: ${e.message}');
+      debugPrint('   Code: ${e.code}');
+      debugPrint('   Details: ${e.details}');
+      debugPrint('   Hint: ${e.hint}');
+      
+      // Provide user-friendly error messages based on error type
+      String userMessage = 'Failed to create energy request: ';
+      if (e.code == '23505') {
+        // Duplicate key error
+        userMessage += 'You already have a pending request for this listing.';
+      } else if (e.code == '23503') {
+        // Foreign key violation
+        userMessage += 'The listing is no longer available.';
+      } else if (e.code == '23502') {
+        // Not null violation
+        userMessage += 'Missing required information. Please try again.';
+      } else if (e.message.contains('permission')) {
+        userMessage += 'You don\'t have permission to create requests. Please check your account.';
+      } else {
+        userMessage += e.message;
+      }
+      
+      _setError(userMessage);
+      return false;
       
     } catch (e) {
-      debugPrint('❌ Error creating test listings: $e');
+      // Handle any other errors
+      debugPrint('❌ Unexpected error creating energy request: $e');
+      debugPrint('   Error type: ${e.runtimeType}');
+      _setError('Failed to create energy request: $e');
+      return false;
+      
+    } finally {
+      _setLoading(false);
     }
   }
 
+  /// Cancel an energy request (buyer functionality)
+  Future<bool> cancelRequest(String requestId) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final userId = currentUserId;
+      if (userId == null) {
+        _setError('User not authenticated');
+        return false;
+      }
+
+      // Update request status to cancelled
+      await _supabase
+          .from('energy_requests')
+          .update({
+            'status': 'cancelled',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', requestId)
+          .eq('buyer_id', userId); // Security: ensure user owns the request
+
+      // Refresh user's requests
+      await getMyRequests();
+      
+      _setError(null);
+      notifyListeners();
+      
+      debugPrint('✅ Energy request cancelled successfully');
+      return true;
+
+    } catch (e) {
+      debugPrint('❌ Error cancelling energy request: $e');
+      _setError('Failed to cancel energy request: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get user's energy requests
+  Future<void> getMyRequests() async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) {
+        debugPrint('⚠️ Cannot get requests: User not authenticated');
+        return;
+      }
+
+      debugPrint('🔍 Loading user requests...');
+
+      final response = await _supabase
+          .from('energy_requests')
+          .select('*')
+          .eq('buyer_id', userId)
+          .order('created_at', ascending: false);
+
+      _myRequests = response.map<EnergyRequest>((request) {
+        request['seller_name'] = 'Seller';
+        return EnergyRequest.fromJson(request);
+      }).toList();
+
+      debugPrint('✅ Loaded ${_myRequests.length} requests');
+      notifyListeners();
+
+    } catch (e) {
+      debugPrint('❌ Error loading user requests: $e');
+      _setError('Failed to load your requests: $e');
+    }
+  }
+
+  Future<void> getMyTransactions() async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('energy_transactions')
+          .select('*')
+          .or('seller_id.eq.$userId,buyer_id.eq.$userId')
+          .order('created_at', ascending: false);
+
+      _myTransactions = response.map<EnergyTransaction>((transaction) => 
+        EnergyTransaction.fromJson(transaction)
+      ).toList();
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading my transactions: $e');
+    }
+  }
+
+  Future<bool> completeTransaction(String transactionId, double energyTransferred) async {
+    try {
+      await _supabase
+          .from('energy_transactions')
+          .update({
+            'energy_transferred': energyTransferred,
+            'status': 'completed',
+            'end_time': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', transactionId);
+      
+      await getMyTransactions();
+      return true;
+    } catch (e) {
+      debugPrint('Error completing transaction: $e');
+      return false;
+    }
+  }
+
+  // ============================================================================
   // HELPER METHODS AND UTILITIES
   // ============================================================================
 
@@ -554,7 +727,7 @@ class MarketplaceProvider extends ChangeNotifier {
           .eq('listing_id', _myActiveListing!.id)
           .order('created_at', ascending: false);
 
-      _receivedRequests = (response as List).map((request) {
+      _receivedRequests = response.map<EnergyRequest>((request) {
         request['buyer_name'] = 'Buyer';
         return EnergyRequest.fromJson(request);
       }).toList();
@@ -734,174 +907,6 @@ class MarketplaceProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Marketplace initialization error: $e');
-    }
-  }
-
-  /// Create an energy request (buyer functionality)
-  Future<bool> createEnergyRequest({
-    required String listingId,
-    required double requestedEnergy,
-    required double offeredPricePerKwh,
-    String? message,
-  }) async {
-    try {
-      _setLoading(true);
-      _setError(null);
-
-      final userId = currentUserId;
-      if (userId == null) {
-        _setError('User not authenticated');
-        return false;
-      }
-
-      // Get current location
-      final position = await getCurrentLocation();
-      if (position == null) {
-        _setError('Unable to get current location');
-        return false;
-      }
-
-      // Create the request data
-      final requestData = {
-        'buyer_id': userId,
-        'listing_id': listingId,
-        'requested_energy': requestedEnergy,
-        'offered_price_per_kwh': offeredPricePerKwh,
-        'buyer_location_lat': position.latitude,
-        'buyer_location_lng': position.longitude,
-        'message': message,
-        'status': 'pending',
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-
-      // Insert into database
-      await _supabase
-          .from('energy_requests')
-          .insert(requestData);
-
-      // Refresh user's requests
-      await getMyRequests();
-      
-      _setError(null);
-      notifyListeners();
-      
-      debugPrint('✅ Energy request created successfully');
-      return true;
-
-    } catch (e) {
-      debugPrint('❌ Error creating energy request: $e');
-      _setError('Failed to create energy request: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Cancel an energy request (buyer functionality)
-  Future<bool> cancelRequest(String requestId) async {
-    try {
-      _setLoading(true);
-      _setError(null);
-
-      final userId = currentUserId;
-      if (userId == null) {
-        _setError('User not authenticated');
-        return false;
-      }
-
-      // Update request status to cancelled
-      await _supabase
-          .from('energy_requests')
-          .update({
-            'status': 'cancelled',
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', requestId)
-          .eq('buyer_id', userId); // Security: ensure user owns the request
-
-      // Refresh user's requests
-      await getMyRequests();
-      
-      _setError(null);
-      notifyListeners();
-      
-      debugPrint('✅ Energy request cancelled successfully');
-      return true;
-
-    } catch (e) {
-      debugPrint('❌ Error cancelling energy request: $e');
-      _setError('Failed to cancel energy request: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Implementation methods for completeness
-  Future<void> getMyRequests() async {
-    // Implementation for loading user's requests
-    try {
-      final userId = currentUserId;
-      if (userId == null) return;
-
-      final response = await _supabase
-          .from('energy_requests')
-          .select('*')
-          .eq('buyer_id', userId)
-          .order('created_at', ascending: false);
-
-      _myRequests = (response as List).map((request) {
-        request['seller_name'] = 'Seller';
-        return EnergyRequest.fromJson(request);
-      }).toList();
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading my requests: $e');
-    }
-  }
-
-  Future<void> getMyTransactions() async {
-    // Implementation for loading user's transactions
-    try {
-      final userId = currentUserId;
-      if (userId == null) return;
-
-      final response = await _supabase
-          .from('energy_transactions')
-          .select('*')
-          .or('seller_id.eq.$userId,buyer_id.eq.$userId')
-          .order('created_at', ascending: false);
-
-      _myTransactions = (response as List).map((transaction) => 
-        EnergyTransaction.fromJson(transaction)
-      ).toList();
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading my transactions: $e');
-    }
-  }
-
-  Future<bool> completeTransaction(String transactionId, double energyTransferred) async {
-    // Implementation for completing transactions
-    try {
-      await _supabase
-          .from('energy_transactions')
-          .update({
-            'energy_transferred': energyTransferred,
-            'status': 'completed',
-            'end_time': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', transactionId);
-      
-      await getMyTransactions();
-      return true;
-    } catch (e) {
-      debugPrint('Error completing transaction: $e');
-      return false;
     }
   }
 }

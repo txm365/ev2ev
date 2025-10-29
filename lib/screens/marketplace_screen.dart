@@ -8,6 +8,7 @@ import '../widgets/listing_card.dart';
 import '../widgets/request_card.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../models/energy_listing.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -19,16 +20,27 @@ class MarketplaceScreen extends StatefulWidget {
 class MarketplaceScreenState extends State<MarketplaceScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  MarketplaceProvider? _provider;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    
-    // Initialize marketplace data
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safe way to access provider after widget is mounted
+    if (_provider == null) {
+      _provider = context.read<MarketplaceProvider>();
+      _initializeMarketplace();
+    }
+  }
+
+  void _initializeMarketplace() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final marketplaceProvider = context.read<MarketplaceProvider>();
-      marketplaceProvider.initialize();
+      _provider?.initialize();
     });
   }
 
@@ -156,7 +168,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         padding: const EdgeInsets.only(bottom: 12),
                         child: ListingCard(
                           listing: listing,
-                          onTap: () => _showEnergyRequestDialog(context, listing),
+                          onTap: () => _showEnergyRequestDialog(context, listing, provider),
                         ),
                       );
                     },
@@ -205,19 +217,19 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               children: [
                 _buildFilterChip(
                   'Distance: ${provider.maxDistance.toInt()}km',
-                  onTap: () => _showDistanceFilter(provider),
+                  onTap: () => _showDistanceFilter(context, provider),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
                   'Max Price: R${provider.maxPrice.toStringAsFixed(1)}',
-                  onTap: () => _showPriceFilter(provider),
+                  onTap: () => _showPriceFilter(context, provider),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
                   provider.selectedVehicleType == 'all' 
                       ? 'All Vehicles' 
                       : provider.selectedVehicleType,
-                  onTap: () => _showVehicleTypeFilter(provider),
+                  onTap: () => _showVehicleTypeFilter(context, provider),
                 ),
                 const SizedBox(width: 8),
                 if (provider.searchQuery.isNotEmpty || 
@@ -301,7 +313,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     if (provider.myActiveListing != null) {
       return _buildActiveListingView(provider);
     } else {
-      return _buildCreateListingView(provider);
+      return _buildCreateListingView(context, provider);
     }
   }
 
@@ -484,8 +496,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               child: RequestCard(
                 request: request,
                 isReceived: true,
-                onAccept: () => _handleRequestResponse(provider, request.id, 'accepted'),
-                onReject: () => _handleRequestResponse(provider, request.id, 'rejected'),
+                onAccept: () => _handleRequestResponse(context, provider, request.id, 'accepted'),
+                onReject: () => _handleRequestResponse(context, provider, request.id, 'rejected'),
               ),
             )),
           ] else ...[
@@ -522,7 +534,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _toggleListingStatus(provider, listing.status),
+                  onPressed: () => _toggleListingStatus(context, provider, listing.status),
                   icon: Icon(listing.status == 'available' ? Icons.pause : Icons.play_arrow),
                   label: Text(listing.status == 'available' ? 'Pause Listing' : 'Resume Listing'),
                   style: OutlinedButton.styleFrom(
@@ -550,7 +562,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Widget _buildCreateListingView(MarketplaceProvider provider) {
+  Widget _buildCreateListingView(BuildContext context, MarketplaceProvider provider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -782,7 +794,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             description: data['description'],
           );
 
-          if (success && mounted) {
+          if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(AppStrings.listingCreated),
@@ -796,7 +808,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showEditListingDialog(BuildContext context, MarketplaceProvider provider, listing) {
+  void _showEditListingDialog(BuildContext context, MarketplaceProvider provider, EnergyListing listing) {
     showDialog(
       context: context,
       builder: (context) => CreateListingDialog(
@@ -815,7 +827,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             description: data['description'],
           );
 
-          if (success && mounted) {
+          if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(AppStrings.listingUpdated),
@@ -846,7 +858,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               Navigator.of(context).pop();
               
               final success = await provider.deleteMyListing();
-              if (success && mounted) {
+              if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(AppStrings.listingDeleted),
@@ -866,11 +878,11 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Future<void> _toggleListingStatus(MarketplaceProvider provider, String currentStatus) async {
+  Future<void> _toggleListingStatus(BuildContext context, MarketplaceProvider provider, String currentStatus) async {
     final newStatus = currentStatus == 'available' ? 'paused' : 'available';
     final success = await provider.updateListingStatus(newStatus);
     
-    if (success && mounted) {
+    if (success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Listing ${newStatus == 'available' ? 'resumed' : 'paused'} successfully'),
@@ -880,10 +892,10 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     }
   }
 
-  Future<void> _handleRequestResponse(MarketplaceProvider provider, String requestId, String status) async {
+  Future<void> _handleRequestResponse(BuildContext context, MarketplaceProvider provider, String requestId, String status) async {
     final success = await provider.respondToRequest(requestId, status);
     
-    if (success && mounted) {
+    if (success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Request $status successfully'),
@@ -893,7 +905,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     }
   }
 
-  void _showEnergyRequestDialog(BuildContext context, listing) {
+  void _showEnergyRequestDialog(BuildContext context, EnergyListing listing, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => EnergyRequestDialog(
@@ -901,7 +913,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         onSubmit: (data) async {
           Navigator.of(context).pop();
           
-          final provider = context.read<MarketplaceProvider>();
           final success = await provider.createEnergyRequest(
             listingId: data['listingId'],
             requestedEnergy: data['requestedEnergy'],
@@ -909,7 +920,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             message: data['message'],
           );
 
-          if (success && mounted) {
+          if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(AppStrings.requestSent),
@@ -923,7 +934,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showDistanceFilter(MarketplaceProvider provider) {
+  void _showDistanceFilter(BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -958,7 +969,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showPriceFilter(MarketplaceProvider provider) {
+  void _showPriceFilter(BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -993,7 +1004,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showVehicleTypeFilter(MarketplaceProvider provider) {
+  void _showVehicleTypeFilter(BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
