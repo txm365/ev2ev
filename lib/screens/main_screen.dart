@@ -11,7 +11,6 @@ import './profile_screen.dart';
 import '../providers/marketplace_provider.dart' as mp;
 import '../providers/bluetooth_provider.dart' as bt;
 
-
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -79,26 +78,53 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
       final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
       bluetoothProvider.initialize();
       
-      // Listen for auto-routing conditions
-      bluetoothProvider.addListener(_handleBluetoothStateChanges);
+      // Listen for connection state changes
+      bluetoothProvider.addListener(_handleBluetoothStateChange);
     });
-
-    _updateFabVisibility();
   }
 
-  void _handleBluetoothStateChanges() {
-    if (!mounted) return;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    _fabAnimationController.dispose();
     
+    // Remove bluetooth listener
+    final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
+    bluetoothProvider.removeListener(_handleBluetoothStateChange);
+    
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.resumed) {
+      // App resumed from background
+      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
+      if (!bluetoothProvider.isConnected) {
+        // Optionally reconnect
+      }
+    } else if (state == AppLifecycleState.paused) {
+      // App going to background
+    }
+  }
+
+  void _handleBluetoothStateChange() {
     final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
     
-    // Auto-route to Bluetooth scan page when connected successfully
+    // Show connection success dialog once
     if (bluetoothProvider.isConnected && 
         !_hasShownConnectionSuccessDialog && 
-        _selectedIndex != 0) {
+        mounted) {
       _hasShownConnectionSuccessDialog = true;
       
-      // Show success dialog
-      _showConnectionSuccessDialog();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showConnectionSuccessDialog();
+        }
+      });
     }
     
     // Reset flag when disconnected
@@ -110,95 +136,59 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
   void _showConnectionSuccessDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Text('Connected Successfully'),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 10),
+              Text('Connected Successfully'),
+            ],
+          ),
+          content: const Text(
+            'Your device is now connected and streaming data. You can view real-time information on the dashboard.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
           ],
-        ),
-        content: const Text(
-          'Your EV is now connected and ready for energy trading. You can view real-time data on the Dashboard.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to dashboard
-              _onItemTapped(0);
-            },
-            child: const Text('View Dashboard'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _updateFabVisibility() {
-    if (_selectedIndex == 1) { // Show on Marketplace page
-      _fabAnimationController.forward();
-    } else {
-      _fabAnimationController.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pageController.dispose();
-    _fabAnimationController.dispose();
-    
-    // Remove listener safely
-    try {
-      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-      bluetoothProvider.removeListener(_handleBluetoothStateChanges);
-    } catch (e) {
-      // Provider might not be available during disposal
-      debugPrint('Error removing listener: $e');
-    }
-    
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.resumed) {
-      // Refresh marketplace data when app returns to foreground
-      if (_selectedIndex == 1) {
-        try {
-          final marketplaceProvider = Provider.of<mp.MarketplaceProvider>(context, listen: false);
-          marketplaceProvider.refreshAll();
-        } catch (e) {
-          debugPrint('Error refreshing marketplace: $e');
-        }
+  // Public method for navigation from other screens (e.g., marketplace)
+  void navigateToTab(int index) {
+    if (index >= 0 && index < _pages.length) {
+      setState(() {
+        _selectedIndex = index;
+      });
+      _pageController.jumpToPage(index);
+      
+      if (index == 1) {
+        _fabAnimationController.forward();
+      } else {
+        _fabAnimationController.reverse();
       }
     }
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-      _updateFabVisibility();
-    });
+    navigateToTab(index);
   }
 
   void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
-      _updateFabVisibility();
     });
+    
+    if (index == 1) {
+      _fabAnimationController.forward();
+    } else {
+      _fabAnimationController.reverse();
+    }
   }
 
   @override
@@ -209,12 +199,10 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
         onPageChanged: _onPageChanged,
         children: _pages,
       ),
-      bottomNavigationBar: Consumer2<bt.BluetoothProvider, mp.MarketplaceProvider>(
-        builder: (context, bluetoothProvider, marketplaceProvider, child) {
-          // Calculate badge count for marketplace (pending requests received) - WITH NULL SAFETY
-          final receivedRequests = marketplaceProvider.receivedRequests;
-          final pendingRequestsCount = receivedRequests
-              .where((r) => r.status == 'pending')
+      bottomNavigationBar: Consumer<mp.MarketplaceProvider>(
+        builder: (context, marketplaceProvider, child) {
+          final pendingRequestsCount = marketplaceProvider.receivedRequests
+              .where((req) => req.status == 'pending')
               .length;
 
           return BottomNavigationBar(
@@ -222,7 +210,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
               final index = entry.key;
               final item = entry.value;
               
-              // Add badge to marketplace if there are pending requests
+              // Add badge to Marketplace tab if there are pending requests
               if (index == 1 && pendingRequestsCount > 0) {
                 return BottomNavigationBarItem(
                   icon: badges.Badge(
@@ -292,7 +280,8 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
               subtitle: const Text('Sell your excess energy'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to create listing - trigger the dialog in marketplace screen
+                // Navigate to marketplace and trigger create listing
+                navigateToTab(1);
               },
             ),
             ListTile(
@@ -302,6 +291,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
               onTap: () {
                 Navigator.pop(context);
                 provider.getNearbyListings();
+                navigateToTab(1);
               },
             ),
             ListTile(

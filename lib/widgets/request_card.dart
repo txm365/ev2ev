@@ -9,7 +9,7 @@ class RequestCard extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onCancel;
-  final VoidCallback? onShowOnMap;
+  final VoidCallback? onViewOnMap;
 
   const RequestCard({
     super.key,
@@ -18,7 +18,7 @@ class RequestCard extends StatelessWidget {
     this.onAccept,
     this.onReject,
     this.onCancel,
-    this.onShowOnMap,
+    this.onViewOnMap,
   });
 
   @override
@@ -126,34 +126,35 @@ class RequestCard extends StatelessWidget {
             ),
 
             if (request.message?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.all(12),
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.blue[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        Icon(Icons.message, size: 16, color: Colors.blue[700]),
-                        const SizedBox(width: 8),
+                        Icon(Icons.message, size: 14, color: Colors.blue),
+                        SizedBox(width: 4),
                         Text(
-                          'Message',
+                          'Message:',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
+                            fontSize: 12,
+                            color: Colors.blue,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       request.message!,
-                      style: TextStyle(color: Colors.grey[800]),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ],
                 ),
@@ -161,68 +162,42 @@ class RequestCard extends StatelessWidget {
             ],
 
             const SizedBox(height: 8),
-            
-            Text(
-              'Requested ${_formatTimestamp(request.createdAt)}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(
+                  DateFormat('MMM d, yyyy h:mm a').format(request.createdAt),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
             ),
 
-            if (_buildActionButtons().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: _buildActionButtons(),
-              ),
-            ],
-
-            if (request.status == 'accepted' && _hasLocationData() && onShowOnMap != null) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onShowOnMap,
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('Show Route on Map'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            const SizedBox(height: 12),
+            _buildActionButtons(),
           ],
         ),
       ),
     );
   }
 
-  bool _hasLocationData() {
-    return request.sellerLocationLat != null && 
-           request.sellerLocationLng != null;
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return DateFormat('MMM d, yyyy').format(timestamp);
-    }
+  Widget _buildStatusChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getStatusColor().withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _getStatusColor(), width: 1.5),
+      ),
+      child: Text(
+        request.status.toUpperCase(),
+        style: TextStyle(
+          color: _getStatusColor(),
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
+      ),
+    );
   }
 
   Color _getStatusColor() {
@@ -233,10 +208,10 @@ class RequestCard extends StatelessWidget {
         return Colors.green;
       case 'rejected':
         return Colors.red;
-      case 'cancelled':
-        return Colors.grey;
-      default:
+      case 'completed':
         return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -248,10 +223,10 @@ class RequestCard extends StatelessWidget {
         return Icons.check_circle;
       case 'rejected':
         return Icons.cancel;
-      case 'cancelled':
-        return Icons.block;
+      case 'completed':
+        return Icons.done_all;
       default:
-        return Icons.help;
+        return Icons.info;
     }
   }
 
@@ -266,8 +241,8 @@ class RequestCard extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
+                fontSize: 11,
                 color: Colors.grey[600],
-                fontSize: 12,
               ),
             ),
           ],
@@ -284,63 +259,92 @@ class RequestCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: _getStatusColor().withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _getStatusColor()),
-      ),
-      child: Text(
-        request.status.toUpperCase(),
-        style: TextStyle(
-          color: _getStatusColor(),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildActionButtons() {
-    if (request.status != 'pending') {
-      return [];
-    }
-
+  Widget _buildActionButtons() {
     if (isReceived) {
-      return [
-        TextButton(
-          onPressed: onReject,
-          style: TextButton.styleFrom(
-            foregroundColor: Colors.red,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          child: const Text('Reject'),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: onAccept,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          child: const Text('Accept'),
-        ),
-      ];
+      // Seller view - showing actions for received requests
+      if (request.status == 'pending') {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onReject,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onAccept,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Accept'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      } else if (request.status == 'accepted') {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onViewOnMap,
+                icon: const Icon(Icons.map, size: 18),
+                label: const Text('View on Map'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
     } else {
-      return [
-        OutlinedButton(
-          onPressed: onCancel,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.red,
-            side: const BorderSide(color: Colors.red),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          child: const Text('Cancel Request'),
-        ),
-      ];
+      // Buyer view - showing actions for sent requests
+      if (request.status == 'pending') {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel, size: 18),
+                label: const Text('Cancel Request'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
+            ),
+          ],
+        );
+      } else if (request.status == 'accepted') {
+        // Show View on Map button for buyer when request is accepted
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onViewOnMap,
+                icon: const Icon(Icons.map, size: 18),
+                label: const Text('View on Map'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      }
     }
+
+    return const SizedBox.shrink();
   }
 }

@@ -35,12 +35,28 @@ class MapPageState extends State<MapPage> {
     _mapProvider = context.read<MapProvider>();
     _bluetoothProvider = context.read<BluetoothProvider>();
     _initializePosition();
+    
+    // Listen for route changes from external sources (e.g., marketplace)
+    _mapProvider.addListener(_handleRouteUpdate);
   }
 
   @override
   void dispose() {
+    _mapProvider.removeListener(_handleRouteUpdate);
     _mapController.dispose();
     super.dispose();
+  }
+
+  void _handleRouteUpdate() {
+    if (_mapProvider.selectedPoint != null && 
+        _mapProvider.routePoints.isEmpty && 
+        _mapProvider.currentPosition != null) {
+      // Route was set from external source, calculate the actual route
+      _calculateRoute(
+        _mapProvider.currentPosition!,
+        _mapProvider.selectedPoint!,
+      );
+    }
   }
 
   Future<void> _initializePosition() async {
@@ -113,6 +129,46 @@ class MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _calculateRoute(LatLng start, LatLng end) async {
+    if (_isRouting) return;
+    
+    setState(() => _isRouting = true);
+    
+    try {
+      final routeData = await _getOSRMRoute(start, end);
+      final route = routeData['routes'][0];
+      final points = _polylinePoints.decodePolyline(route['geometry']);
+
+      if (mounted) {
+        _mapProvider.updateRoutePoints(
+          points.map((p) => LatLng(p.latitude, p.longitude)).toList()
+        );
+        _mapProvider.updateRouteDistance(route['distance'] / 1000);
+        
+        // Center map to show the route
+        _centerMapOnRoute(start, end);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Routing failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRouting = false);
+    }
+  }
+
+  void _centerMapOnRoute(LatLng start, LatLng end) {
+    final bounds = LatLngBounds(start, end);
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(50),
+      ),
+    );
+  }
+
   void _handleMapTap(TapPosition tapPosition, LatLng latLng) async {
     if (!mounted || _isRouting || !_mapReady) return;
 
@@ -124,29 +180,7 @@ class MapPageState extends State<MapPage> {
       return;
     }
 
-    setState(() => _isRouting = true);
-    
-    try {
-      final routeData = await _getOSRMRoute(currentPos, latLng);
-      final route = routeData['routes'][0];
-      final points = _polylinePoints.decodePolyline(route['geometry']);
-
-      if (mounted) {
-        _mapProvider.setRoute(
-          latLng,
-          points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
-          route['distance'] / 1000
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Routing failed: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isRouting = false);
-    }
+    await _calculateRoute(currentPos, latLng);
   }
 
   void _handleEnergyTradeAction(String type) async {
@@ -207,6 +241,16 @@ class MapPageState extends State<MapPage> {
             icon: const Icon(Icons.my_location),
             onPressed: _initializePosition,
           ),
+          if (_mapProvider.selectedPoint != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                _mapProvider.clearRoute();
+                if (_mapProvider.currentPosition != null) {
+                  _mapController.move(_mapProvider.currentPosition!, 15);
+                }
+              },
+            ),
         ],
       ),
       body: Consumer<MapProvider>(
@@ -219,7 +263,12 @@ class MapPageState extends State<MapPage> {
                   initialCenter: mapProvider.currentPosition ?? const LatLng(-26.2041, 28.0473), // Johannesburg
                   initialZoom: 15.0,
                   onTap: _handleMapTap,
-                  onMapReady: () => setState(() => _mapReady = true),
+                  onMapReady: () {
+                    setState(() => _mapReady = true);
+                    if (mapProvider.currentPosition != null) {
+                      _mapController.move(mapProvider.currentPosition!, 15);
+                    }
+                  },
                 ),
                 children: [
                   TileLayer(
@@ -231,14 +280,55 @@ class MapPageState extends State<MapPage> {
                       if (mapProvider.currentPosition != null)
                         Marker(
                           point: mapProvider.currentPosition!,
-                          child: const Icon(Icons.location_pin, 
-                              color: Colors.blue, size: 40),
+                          width: 80,
+                          height: 80,
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'You',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.my_location, 
+                                  color: Colors.blue, size: 40),
+                            ],
+                          ),
                         ),
                       if (mapProvider.selectedPoint != null)
                         Marker(
                           point: mapProvider.selectedPoint!,
-                          child: const Icon(Icons.location_pin, 
-                              color: Colors.red, size: 40),
+                          width: 80,
+                          height: 80,
+                          child: Column(
+                            children: [
+                              if (mapProvider.destinationName != null)
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    mapProvider.destinationName!,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              const Icon(Icons.location_pin, 
+                                  color: Colors.red, size: 40),
+                            ],
+                          ),
                         ),
                     ],
                   ),
@@ -262,24 +352,6 @@ class MapPageState extends State<MapPage> {
                   child: const Center(child: CircularProgressIndicator()),
                 ),
               
-              // Energy trade action buttons
-              Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionButton('Buy Energy', Icons.shopping_cart, Colors.green)
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildActionButton('Sell Energy', Icons.electric_bolt, Colors.blue)
-                    ),
-                  ],
-                ),
-              ),
-              
               // Distance and route info
               if (mapProvider.selectedDistance != null)
                 Positioned(
@@ -297,46 +369,76 @@ class MapPageState extends State<MapPage> {
 
   Widget _buildRouteInfo(MapProvider provider) {
     return Card(
+      elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            if (provider.destinationName != null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 20, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'To: ${provider.destinationName}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Route Distance:', 
-                  style: Theme.of(context).textTheme.titleMedium),
-                Text('${provider.selectedDistance!.toStringAsFixed(2)} km',
-                  style: const TextStyle(fontSize: 18)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Distance:', 
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('${provider.selectedDistance!.toStringAsFixed(2)} km',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Est. Energy:', 
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('${provider.calculateEnergyRequired(6).toStringAsFixed(2)} kWh',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                  ],
+                ),
               ],
             ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.directions),
-              label: const Text('Navigate'),
-              onPressed: () {
-                // TODO: Implement navigation
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Navigation feature coming soon!')),
-                );
-              },
-            ),
+            if (provider.routeType == 'energy_trade') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.navigation),
+                  label: const Text('Start Navigation'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Navigation feature coming soon!')),
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildActionButton(String text, IconData icon, Color color) {
-    return ElevatedButton.icon(
-      icon: Icon(icon),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-      ),
-      onPressed: () => _handleEnergyTradeAction(text.split(' ')[0]), // Extract 'Buy' or 'Sell'
     );
   }
 }
