@@ -5,10 +5,11 @@ import '../models/energy_request.dart';
 
 class RequestCard extends StatelessWidget {
   final EnergyRequest request;
-  final bool isReceived; // true if this is a request received by seller
+  final bool isReceived;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onCancel;
+  final VoidCallback? onShowOnMap;
 
   const RequestCard({
     super.key,
@@ -17,6 +18,7 @@ class RequestCard extends StatelessWidget {
     this.onAccept,
     this.onReject,
     this.onCancel,
+    this.onShowOnMap,
   });
 
   @override
@@ -30,7 +32,6 @@ class RequestCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 CircleAvatar(
@@ -72,7 +73,6 @@ class RequestCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Request details
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -137,50 +137,122 @@ class RequestCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Message:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[800],
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.message, size: 16, color: Colors.blue[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Message',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
                       request.message!,
-                      style: TextStyle(color: Colors.blue[700]),
+                      style: TextStyle(color: Colors.grey[800]),
                     ),
                   ],
                 ),
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            
+            Text(
+              'Requested ${_formatTimestamp(request.createdAt)}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
 
-            // Footer with timestamp and actions
-            Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    DateFormat('MMM d, h:mm a').format(request.createdAt),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
+            if (_buildActionButtons().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: _buildActionButtons(),
+              ),
+            ],
+
+            if (request.status == 'accepted' && _hasLocationData() && onShowOnMap != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onShowOnMap,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Show Route on Map'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
-                ..._buildActionButtons(),
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  bool _hasLocationData() {
+    return request.sellerLocationLat != null && 
+           request.sellerLocationLng != null;
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return DateFormat('MMM d, yyyy').format(timestamp);
+    }
+  }
+
+  Color _getStatusColor() {
+    switch (request.status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'cancelled':
+        return Colors.grey;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  IconData _getStatusIcon() {
+    switch (request.status.toLowerCase()) {
+      case 'pending':
+        return Icons.hourglass_empty;
+      case 'accepted':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'cancelled':
+        return Icons.block;
+      default:
+        return Icons.help;
+    }
   }
 
   Widget _buildDetailItem(String label, String value, IconData icon) {
@@ -237,7 +309,6 @@ class RequestCard extends StatelessWidget {
     }
 
     if (isReceived) {
-      // Seller can accept or reject
       return [
         TextButton(
           onPressed: onReject,
@@ -259,51 +330,17 @@ class RequestCard extends StatelessWidget {
         ),
       ];
     } else {
-      // Buyer can cancel
       return [
-        TextButton(
+        OutlinedButton(
           onPressed: onCancel,
-          style: TextButton.styleFrom(
+          style: OutlinedButton.styleFrom(
             foregroundColor: Colors.red,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            side: const BorderSide(color: Colors.red),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
           ),
-          child: const Text('Cancel'),
+          child: const Text('Cancel Request'),
         ),
       ];
-    }
-  }
-
-  Color _getStatusColor() {
-    switch (request.status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'accepted':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'completed':
-        return Colors.blue;
-      case 'cancelled':
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon() {
-    switch (request.status.toLowerCase()) {
-      case 'pending':
-        return Icons.hourglass_empty;
-      case 'accepted':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'completed':
-        return Icons.done_all;
-      case 'cancelled':
-        return Icons.close;
-      default:
-        return Icons.help;
     }
   }
 }

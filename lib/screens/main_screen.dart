@@ -8,7 +8,6 @@ import './dashboard_page.dart';
 import '../screens/marketplace_screen.dart'; 
 import './map_page.dart';
 import './profile_screen.dart';
-import './bluetooth_scan_page.dart';
 import '../providers/marketplace_provider.dart' as mp;
 import '../providers/bluetooth_provider.dart' as bt;
 

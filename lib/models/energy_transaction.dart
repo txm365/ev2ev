@@ -21,6 +21,8 @@ class EnergyTransaction {
   final String? buyerReview;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? sellerName;
+  final String? buyerName;
 
   EnergyTransaction({
     required this.id,
@@ -44,6 +46,8 @@ class EnergyTransaction {
     this.buyerReview,
     required this.createdAt,
     required this.updatedAt,
+    this.sellerName,
+    this.buyerName,
   });
 
   factory EnergyTransaction.fromJson(Map<String, dynamic> json) {
@@ -73,6 +77,8 @@ class EnergyTransaction {
       updatedAt: json['updated_at'] != null 
           ? DateTime.parse(json['updated_at']) 
           : DateTime.now(),
+      sellerName: json['seller_name'],
+      buyerName: json['buyer_name'],
     );
   }
 

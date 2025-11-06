@@ -182,7 +182,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
   Widget _buildSearchAndFilterBar(MarketplaceProvider provider) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surfaceVariant,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -279,9 +279,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 64, color: AppColors.textTertiary),
+          const Icon(Icons.search_off, size: 64, color: AppColors.textTertiary),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'No energy listings found',
             style: TextStyle(
               fontSize: 18,
@@ -290,7 +290,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Try adjusting your search filters or check back later',
             style: TextStyle(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
@@ -501,13 +501,13 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               ),
             )),
           ] else ...[
-            Card(
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(20),
                 child: Column(
                   children: [
                     Icon(Icons.inbox, size: 48, color: AppColors.textTertiary),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Text(
                       'No requests yet',
                       style: TextStyle(
@@ -516,7 +516,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       'Buyers will see your listing and can send requests',
                       textAlign: TextAlign.center,
@@ -631,7 +631,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w500,
@@ -657,9 +657,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.request_page, size: 64, color: AppColors.textTertiary),
+                  const Icon(Icons.request_page, size: 64, color: AppColors.textTertiary),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'No requests yet',
                     style: TextStyle(
                       fontSize: 18,
@@ -668,7 +668,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Browse the Buy Energy tab to request energy from sellers',
                     style: TextStyle(color: AppColors.textSecondary),
                     textAlign: TextAlign.center,
@@ -702,12 +702,12 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     return RefreshIndicator(
       onRefresh: () => provider.getMyTransactions(),
       child: provider.myTransactions.isEmpty
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.history, size: 64, color: AppColors.textTertiary),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
                     'No transaction history',
                     style: TextStyle(
@@ -716,7 +716,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     'Your completed energy trades will appear here',
                     style: TextStyle(color: AppColors.textSecondary),

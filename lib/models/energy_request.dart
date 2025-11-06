@@ -18,6 +18,8 @@ class EnergyRequest {
   final EnergyListing? listing;
   final String? buyerName;
   final String? sellerName;
+  final double? sellerLocationLat;
+  final double? sellerLocationLng;
 
   EnergyRequest({
     required this.id,
@@ -34,6 +36,8 @@ class EnergyRequest {
     this.listing,
     this.buyerName,
     this.sellerName,
+    this.sellerLocationLat,
+    this.sellerLocationLng,
   });
 
   factory EnergyRequest.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,8 @@ class EnergyRequest {
           : null,
       buyerName: json['buyer_name'],
       sellerName: json['seller_name'],
+      sellerLocationLat: (json['seller_location_lat'] as num?)?.toDouble(),
+      sellerLocationLng: (json['seller_location_lng'] as num?)?.toDouble(),
     );
   }
 
@@ -89,6 +95,8 @@ class EnergyRequest {
     EnergyListing? listing,
     String? buyerName,
     String? sellerName,
+    double? sellerLocationLat,
+    double? sellerLocationLng,
   }) {
     return EnergyRequest(
       id: id ?? this.id,
@@ -105,6 +113,8 @@ class EnergyRequest {
       listing: listing ?? this.listing,
       buyerName: buyerName ?? this.buyerName,
       sellerName: sellerName ?? this.sellerName,
+      sellerLocationLat: sellerLocationLat ?? this.sellerLocationLat,
+      sellerLocationLng: sellerLocationLng ?? this.sellerLocationLng,
     );
   }
 }

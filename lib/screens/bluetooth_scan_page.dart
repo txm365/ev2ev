@@ -566,9 +566,9 @@ class _ServiceList extends StatelessWidget {
                   children: services[index].characteristics
                       .map((c) => ListTile(
                             dense: true,
-                            title: Text(
+                            title: const Text(
                               'Characteristic',
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 14),
                             ),
                             subtitle: _getProperties(c),
                             trailing: _getNotificationIcon(c),

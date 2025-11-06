@@ -382,7 +382,7 @@ class BluetoothProvider with ChangeNotifier {
       }
       
       // Get list of all connected devices and disconnect them
-      final connectedDevices = await FlutterBluePlus.connectedDevices;
+      final connectedDevices = FlutterBluePlus.connectedDevices;
       for (var device in connectedDevices) {
         try {
           if (device.isConnected) {

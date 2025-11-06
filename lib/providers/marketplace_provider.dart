@@ -320,13 +320,11 @@ class MarketplaceProvider extends ChangeNotifier {
         return false;
       }
 
-      // Validate status
       if (!['accepted', 'rejected'].contains(status)) {
         _setError('Invalid response status. Must be: accepted or rejected');
         return false;
       }
 
-      // Update request status
       await _supabase
           .from('energy_requests')
           .update({
@@ -335,7 +333,6 @@ class MarketplaceProvider extends ChangeNotifier {
           })
           .eq('id', requestId);
 
-      // If accepted, create a transaction record
       if (status == 'accepted') {
         final request = _receivedRequests.firstWhere((r) => r.id == requestId);
         
@@ -345,6 +342,10 @@ class MarketplaceProvider extends ChangeNotifier {
               'request_id': requestId,
               'seller_id': userId,
               'buyer_id': request.buyerId,
+              'seller_location_lat': _myActiveListing?.locationLat,
+              'seller_location_lng': _myActiveListing?.locationLng,
+              'buyer_location_lat': request.buyerLocationLat,
+              'buyer_location_lng': request.buyerLocationLng,
               'status': 'pending',
               'payment_status': 'pending',
               'created_at': DateTime.now().toIso8601String(),
@@ -352,7 +353,6 @@ class MarketplaceProvider extends ChangeNotifier {
             });
       }
 
-      // Refresh received requests
       await _loadReceivedRequests();
       
       _setError(null);
@@ -620,7 +620,11 @@ class MarketplaceProvider extends ChangeNotifier {
     }
   }
 
-  /// Get user's energy requests
+  // ============================================================================
+  // FETCHING DATA - FIXED METHODS (NO auth.users ACCESS)
+  // ============================================================================
+
+  /// Get user's energy requests with seller names - COMPLETELY FIXED VERSION
   Future<void> getMyRequests() async {
     try {
       final userId = currentUserId;
@@ -631,44 +635,200 @@ class MarketplaceProvider extends ChangeNotifier {
 
       debugPrint('🔍 Loading user requests...');
 
-      final response = await _supabase
+      // Step 1: Get ONLY the requests (no joins at all)
+      final requestsResponse = await _supabase
           .from('energy_requests')
           .select('*')
           .eq('buyer_id', userId)
           .order('created_at', ascending: false);
 
-      _myRequests = response.map<EnergyRequest>((request) {
-        request['seller_name'] = 'Seller';
+      if (requestsResponse.isEmpty) {
+        debugPrint('⚠️ No requests found for this user');
+        _myRequests = [];
+        notifyListeners();
+        return;
+      }
+
+      debugPrint('✅ Step 1: Loaded ${requestsResponse.length} requests from database');
+
+      // Step 2: Get listing IDs and fetch listings separately
+      final listingIds = requestsResponse
+          .map((req) => req['listing_id'])
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+
+      Map<String, dynamic> listingsMap = {};
+      if (listingIds.isNotEmpty) {
+        try {
+          final listingsResponse = await _supabase
+              .from('energy_listings')
+              .select('id, seller_id, location_lat, location_lng')
+              .inFilter('id', listingIds);
+
+          for (var listing in listingsResponse) {
+            listingsMap[listing['id']] = listing;
+          }
+          debugPrint('✅ Step 2: Loaded ${listingsResponse.length} listings');
+        } catch (e) {
+          debugPrint('⚠️ Could not fetch listings: $e');
+        }
+      }
+
+      // Step 3: Extract seller IDs and fetch profiles
+      final sellerIds = listingsMap.values
+          .map((listing) => listing['seller_id'])
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+
+      Map<String, String> sellerNames = {};
+      if (sellerIds.isNotEmpty) {
+        try {
+          final profiles = await _supabase
+              .from('user_profiles')
+              .select('user_id, first_name, last_name')
+              .inFilter('user_id', sellerIds);
+
+          for (var profile in profiles) {
+            final userId = profile['user_id'];
+            final firstName = profile['first_name'] ?? '';
+            final lastName = profile['last_name'] ?? '';
+            final name = '$firstName $lastName'.trim();
+            sellerNames[userId] = name.isNotEmpty ? name : 'Seller';
+          }
+          debugPrint('✅ Step 3: Loaded ${profiles.length} seller profiles');
+        } catch (e) {
+          debugPrint('⚠️ Could not fetch seller names: $e');
+        }
+      }
+
+      // Step 4: Combine all data with null safety
+      _myRequests = requestsResponse.map<EnergyRequest>((request) {
+        String sellerName = 'Seller';
+        double? sellerLat;
+        double? sellerLng;
+        
+        try {
+          final listingId = request['listing_id'];
+          if (listingId != null && listingsMap.containsKey(listingId)) {
+            final listing = listingsMap[listingId];
+            
+            // Safely extract location with null checks
+            final lat = listing['location_lat'];
+            final lng = listing['location_lng'];
+            sellerLat = (lat is num) ? lat.toDouble() : null;
+            sellerLng = (lng is num) ? lng.toDouble() : null;
+            
+            // Get seller name
+            final sellerId = listing['seller_id'];
+            if (sellerId != null && sellerNames.containsKey(sellerId)) {
+              sellerName = sellerNames[sellerId]!;
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error processing request ${request['id']}: $e');
+        }
+        
+        // Add fields to request
+        request['seller_name'] = sellerName;
+        request['seller_location_lat'] = sellerLat;
+        request['seller_location_lng'] = sellerLng;
+        
         return EnergyRequest.fromJson(request);
       }).toList();
 
-      debugPrint('✅ Loaded ${_myRequests.length} requests');
+      debugPrint('✅ Successfully loaded ${_myRequests.length} requests with all details');
       notifyListeners();
 
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Error loading user requests: $e');
+      debugPrint('Stack trace: $stackTrace');
       _setError('Failed to load your requests: $e');
+      _myRequests = [];
+      notifyListeners();
     }
   }
 
+  /// Get user's transactions with names - FIXED VERSION
   Future<void> getMyTransactions() async {
     try {
       final userId = currentUserId;
       if (userId == null) return;
 
+      debugPrint('🔍 Loading transactions with names and locations...');
+
+      // Step 1: Get transactions
       final response = await _supabase
           .from('energy_transactions')
           .select('*')
           .or('seller_id.eq.$userId,buyer_id.eq.$userId')
           .order('created_at', ascending: false);
 
-      _myTransactions = response.map<EnergyTransaction>((transaction) => 
-        EnergyTransaction.fromJson(transaction)
-      ).toList();
+      // Step 2: Extract all unique user IDs
+      final allUserIds = <String>{};
+      for (var transaction in response) {
+        if (transaction['seller_id'] != null) {
+          allUserIds.add(transaction['seller_id']);
+        }
+        if (transaction['buyer_id'] != null) {
+          allUserIds.add(transaction['buyer_id']);
+        }
+      }
 
+      // Step 3: Fetch all user names
+      Map<String, String> userNames = {};
+      if (allUserIds.isNotEmpty) {
+        try {
+          final profiles = await _supabase
+              .from('user_profiles')
+              .select('user_id, first_name, last_name')
+              .inFilter('user_id', allUserIds.toList());
+
+          for (var profile in profiles) {
+            final userId = profile['user_id'];
+            final firstName = profile['first_name'] ?? '';
+            final lastName = profile['last_name'] ?? '';
+            final name = '$firstName $lastName'.trim();
+            userNames[userId] = name.isNotEmpty ? name : 'User';
+          }
+        } catch (e) {
+          debugPrint('⚠️ Could not fetch user names: $e');
+        }
+      }
+
+      // Step 4: Combine data
+      _myTransactions = response.map<EnergyTransaction>((transaction) {
+        String sellerName = 'Seller';
+        String buyerName = 'Buyer';
+        
+        try {
+          final sellerId = transaction['seller_id'];
+          if (sellerId != null && userNames.containsKey(sellerId)) {
+            sellerName = userNames[sellerId]!;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error extracting seller name: $e');
+        }
+        
+        try {
+          final buyerId = transaction['buyer_id'];
+          if (buyerId != null && userNames.containsKey(buyerId)) {
+            buyerName = userNames[buyerId]!;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error extracting buyer name: $e');
+        }
+        
+        transaction['seller_name'] = sellerName;
+        transaction['buyer_name'] = buyerName;
+        return EnergyTransaction.fromJson(transaction);
+      }).toList();
+
+      debugPrint('✅ Loaded ${_myTransactions.length} transactions');
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading my transactions: $e');
+      debugPrint('❌ Error loading transactions: $e');
     }
   }
 
@@ -716,26 +876,81 @@ class MarketplaceProvider extends ChangeNotifier {
     return degrees * (math.pi / 180);
   }
 
-  /// Load received requests for seller
+  /// Load received requests for seller - COMPLETELY FIXED VERSION
   Future<void> _loadReceivedRequests() async {
     try {
       if (_myActiveListing == null) return;
 
+      debugPrint('🔍 Loading received requests...');
+
+      // Step 1: Get ONLY the requests (no joins at all)
       final response = await _supabase
           .from('energy_requests')
           .select('*')
           .eq('listing_id', _myActiveListing!.id)
           .order('created_at', ascending: false);
 
+      if (response.isEmpty) {
+        debugPrint('✅ No received requests');
+        _receivedRequests = [];
+        notifyListeners();
+        return;
+      }
+
+      debugPrint('✅ Step 1: Loaded ${response.length} requests from database');
+
+      // Step 2: Extract unique buyer IDs
+      final buyerIds = response
+          .map((req) => req['buyer_id'])
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+
+      // Step 3: Fetch buyer names separately
+      Map<String, String> buyerNames = {};
+      if (buyerIds.isNotEmpty) {
+        try {
+          final profiles = await _supabase
+              .from('user_profiles')
+              .select('user_id, first_name, last_name')
+              .inFilter('user_id', buyerIds);
+
+          for (var profile in profiles) {
+            final userId = profile['user_id'];
+            final firstName = profile['first_name'] ?? '';
+            final lastName = profile['last_name'] ?? '';
+            final name = '$firstName $lastName'.trim();
+            buyerNames[userId] = name.isNotEmpty ? name : 'Buyer';
+          }
+          debugPrint('✅ Step 2: Loaded ${profiles.length} buyer profiles');
+        } catch (e) {
+          debugPrint('⚠️ Could not fetch buyer names: $e');
+        }
+      }
+
+      // Step 4: Combine data with null safety
       _receivedRequests = response.map<EnergyRequest>((request) {
-        request['buyer_name'] = 'Buyer';
+        String buyerName = 'Buyer';
+        try {
+          final buyerId = request['buyer_id'];
+          if (buyerId != null && buyerNames.containsKey(buyerId)) {
+            buyerName = buyerNames[buyerId]!;
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error processing request ${request['id']}: $e');
+        }
+        
+        request['buyer_name'] = buyerName;
         return EnergyRequest.fromJson(request);
       }).toList();
 
+      debugPrint('✅ Successfully loaded ${_receivedRequests.length} received requests');
       notifyListeners();
 
     } catch (e) {
       debugPrint('❌ Error loading received requests: $e');
+      _receivedRequests = [];
+      notifyListeners();
     }
   }
 
@@ -867,6 +1082,7 @@ class MarketplaceProvider extends ChangeNotifier {
   Future<void> refreshAll() async {
     await getCurrentLocation();
     await getNearbyListings();
+    await getMyRequests(); // Refresh buyer's requests
     await _loadMyActiveListing();
     if (_myActiveListing != null) {
       await _loadReceivedRequests();
@@ -899,12 +1115,15 @@ class MarketplaceProvider extends ChangeNotifier {
   /// Initialize provider
   Future<void> initialize() async {
     try {
+      debugPrint('🚀 Initializing MarketplaceProvider...');
       await getCurrentLocation();
       await _loadMyActiveListing();
       await getNearbyListings();
+      await getMyRequests(); // THIS IS CRITICAL - Load buyer's requests
       if (_myActiveListing != null) {
         _listenForReceivedRequests();
       }
+      debugPrint('✅ MarketplaceProvider initialized - My Requests: ${_myRequests.length}');
     } catch (e) {
       debugPrint('Marketplace initialization error: $e');
     }

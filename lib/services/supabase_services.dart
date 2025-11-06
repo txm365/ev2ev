@@ -116,7 +116,7 @@ class SupabaseService {
     final response = await _client
         .from('energy_transactions')
         .select('*')
-        .or('seller_id.eq.${currentUserId},buyer_id.eq.${currentUserId}')
+        .or('seller_id.eq.$currentUserId,buyer_id.eq.$currentUserId')
         .order('created_at', ascending: false);
     
     return (response as List).map((transaction) => EnergyTransaction.fromJson(transaction)).toList();
