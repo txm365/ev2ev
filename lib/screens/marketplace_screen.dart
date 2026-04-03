@@ -60,8 +60,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       appBar: AppBar(
         title: const Text(AppStrings.marketplace),
         elevation: 2,
-        backgroundColor: AppColors.primaryGreen,
-        foregroundColor: AppColors.textOnPrimary,
+        // colours inherited from appBarTheme in app_themes.dart
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -82,7 +81,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppColors.textOnPrimary,
                     ),
                   ),
                 );
@@ -134,7 +132,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             child: Text(
               provider.errorMessage ?? 'Unknown error',
               textAlign: TextAlign.center,
-              style: TextStyle(color: cs.onSurface.withOpacity(0.6)),
+              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
             ),
           ),
           const SizedBox(height: 24),
@@ -244,7 +242,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: cs.primary.withOpacity(0.12),
+          color: cs.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cs.primary, width: 1),
         ),
@@ -275,20 +273,20 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.search_off,
-              size: 64, color: cs.onSurface.withOpacity(0.4)),
+              size: 64, color: cs.onSurface.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           Text(
             'No energy listings found',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: cs.onSurface.withOpacity(0.7),
+              color: cs.onSurface.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Try adjusting your search filters or check back later',
-            style: TextStyle(color: cs.onSurface.withOpacity(0.5)),
+            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5)),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -422,10 +420,10 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(0.1),
+                        color: AppColors.info.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: AppColors.info.withOpacity(0.3)),
+                            color: AppColors.info.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,7 +480,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.4)),
+                            .withValues(alpha: 0.4)),
                     const SizedBox(height: 12),
                     Text(
                       'No requests yet',
@@ -492,7 +490,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.7),
+                            .withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -503,7 +501,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.5)),
+                              .withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
@@ -589,7 +587,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               'Create your first energy listing and start earning!\nSet your price, availability, and start earning!',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
                 fontSize: 16,
                 height: 1.5,
               ),
@@ -630,7 +628,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         Text(
           label,
           style: TextStyle(
-            color: cs.onSurface.withOpacity(0.6),
+            color: cs.onSurface.withValues(alpha: 0.6),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -656,21 +654,21 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.request_page,
-                      size: 64, color: cs.onSurface.withOpacity(0.4)),
+                      size: 64, color: cs.onSurface.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   Text(
                     'No requests yet',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
-                      color: cs.onSurface.withOpacity(0.7),
+                      color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Browse the Buy Energy tab to request energy from sellers',
                     style:
-                        TextStyle(color: cs.onSurface.withOpacity(0.5)),
+                        TextStyle(color: cs.onSurface.withValues(alpha: 0.5)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -716,21 +714,21 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.history,
-                      size: 64, color: cs.onSurface.withOpacity(0.4)),
+                      size: 64, color: cs.onSurface.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   Text(
                     'No transaction history',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
-                      color: cs.onSurface.withOpacity(0.7),
+                      color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Your completed energy trades will appear here',
                     style:
-                        TextStyle(color: cs.onSurface.withOpacity(0.5)),
+                        TextStyle(color: cs.onSurface.withValues(alpha: 0.5)),
                     textAlign: TextAlign.center,
                   ),
                 ],

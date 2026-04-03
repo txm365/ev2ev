@@ -1,12 +1,13 @@
+// lib/screens/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  State<SignupScreen> createState() => _SignupScreenState();
 }
 
 class _SignupScreenState extends State<SignupScreen> {
@@ -18,7 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -30,11 +31,12 @@ class _SignupScreenState extends State<SignupScreen> {
       controller.text = text.splitMapJoin(
         ' ',
         onMatch: (m) => ' ',
-        onNonMatch: (nm) => nm.isNotEmpty 
-          ? '${nm[0].toUpperCase()}${nm.substring(1).toLowerCase()}'
-          : '',
+        onNonMatch: (nm) => nm.isNotEmpty
+            ? '${nm[0].toUpperCase()}${nm.substring(1).toLowerCase()}'
+            : '',
       );
-      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
     }
   }
 
@@ -63,17 +65,15 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (response.user != null) {
-        await Supabase.instance.client
-            .from('profiles')
-            .upsert({
-              'user_id': response.user!.id,
-              'email': _emailController.text.trim(),
-              'first_name': _firstNameController.text.trim(),
-              'last_name': _lastNameController.text.trim(),
-              'phone': _phoneController.text.trim(),
-              'address': _addressController.text.trim(),
-              'updated_at': DateTime.now().toIso8601String(),
-            });
+        await Supabase.instance.client.from('profiles').upsert({
+          'user_id': response.user!.id,
+          'email': _emailController.text.trim(),
+          'first_name': _firstNameController.text.trim(),
+          'last_name': _lastNameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'address': _addressController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
       }
 
       if (mounted) {
@@ -109,10 +109,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      // No hardcoded backgroundColor — inherits from theme
       appBar: AppBar(
-        title: const Text('Sign Up'),
+        title: const Text('Create Account'),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -122,6 +124,17 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ── Sub-heading ───────────────────────────────────────────
+              Text(
+                'Join the Vehicle to Vehicle\nEnergy Trading Network',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.7),
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+
+              // ── Personal details card ─────────────────────────────────
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
@@ -130,7 +143,19 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Personal Details',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _firstNameController,
                         decoration: const InputDecoration(
@@ -139,7 +164,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           border: OutlineInputBorder(),
                         ),
                         textCapitalization: TextCapitalization.words,
-                        onChanged: (value) => _capitalizeName(_firstNameController),
+                        onChanged: (value) =>
+                            _capitalizeName(_firstNameController),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your first name';
@@ -147,7 +173,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _lastNameController,
                         decoration: const InputDecoration(
@@ -156,7 +182,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           border: OutlineInputBorder(),
                         ),
                         textCapitalization: TextCapitalization.words,
-                        onChanged: (value) => _capitalizeName(_lastNameController),
+                        onChanged: (value) =>
+                            _capitalizeName(_lastNameController),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your last name';
@@ -164,7 +191,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _emailController,
                         decoration: const InputDecoration(
@@ -183,7 +210,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _phoneController,
                         decoration: const InputDecoration(
@@ -202,7 +229,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _addressController,
                         decoration: const InputDecoration(
@@ -218,7 +245,35 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ── Password card ─────────────────────────────────────────
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Security',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
@@ -227,15 +282,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword 
-                                ? Icons.visibility 
-                                : Icons.visibility_off,
+                              _obscurePassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                         obscureText: _obscurePassword,
@@ -249,24 +301,22 @@ class _SignupScreenState extends State<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _confirmPasswordController,
                         decoration: InputDecoration(
                           labelText: 'Confirm Password',
-                          prefixIcon: const Icon(Icons.lock),
+                          prefixIcon: const Icon(Icons.lock_outline),
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscureConfirmPassword 
-                                ? Icons.visibility 
-                                : Icons.visibility_off,
+                              _obscureConfirmPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
-                            },
+                            onPressed: () => setState(() =>
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword),
                           ),
                         ),
                         obscureText: _obscureConfirmPassword,
@@ -284,15 +334,20 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
+
+              // ── Error message ─────────────────────────────────────────
               if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: cs.error),
                   textAlign: TextAlign.center,
                 ),
               ],
-              const SizedBox(height: 24),
+
+              const SizedBox(height: 20),
+
+              // ── Sign up button ────────────────────────────────────────
               ElevatedButton(
                 onPressed: _isLoading ? null : _signUp,
                 style: ElevatedButton.styleFrom(
@@ -305,21 +360,25 @@ class _SignupScreenState extends State<SignupScreen> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text(
-                        'Sign Up',
+                        'Create Account',
                         style: TextStyle(fontSize: 16),
                       ),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 12),
+
+              // ── Sign in link ──────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Already have an account?"),
+                  Text(
+                    'Already have an account?',
+                    style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.7)),
+                  ),
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacement(
@@ -332,6 +391,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
+
+              const SizedBox(height: 24),
             ],
           ),
         ),

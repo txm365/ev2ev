@@ -4,14 +4,14 @@ import 'app_colors.dart';
 import 'app_constants.dart';
 
 class AppThemes {
-  // ─── Dark mode surface colours ────────────────────────────────────────────
-  static const Color _darkBackground   = Color(0xFF121212);
-  static const Color _darkSurface      = Color(0xFF1E1E1E);
-  static const Color _darkSurfaceVar   = Color(0xFF2C2C2C);
-  static const Color _darkBorder       = Color(0xFF3A3A3A);
-  static const Color _darkOnSurface    = Color(0xFFE0E0E0);
+  // ── Dark mode surface palette ─────────────────────────────────────────────
+  static const Color _darkBackground  = Color(0xFF121212);
+  static const Color _darkSurface     = Color(0xFF1E1E1E);
+  static const Color _darkSurfaceVar  = Color(0xFF2C2C2C);
+  static const Color _darkBorder      = Color(0xFF3A3A3A);
+  static const Color _darkOnSurface   = Color(0xFFE0E0E0);
 
-  // ─── Light theme ─────────────────────────────────────────────────────────
+  // ── Light theme ───────────────────────────────────────────────────────────
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -23,10 +23,16 @@ class AppThemes {
       ),
       scaffoldBackgroundColor: AppColors.background,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFC4ECB1),
-        foregroundColor: AppColors.textOnPrimary,
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF212121),  // dark text visible on white
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Color(0xFF212121)),
+        titleTextStyle: TextStyle(
+          color: Color(0xFF212121),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       cardTheme: const CardTheme(
         elevation: AppConstants.cardElevation,
@@ -45,8 +51,7 @@ class AppThemes {
             borderRadius:
                 BorderRadius.circular(AppConstants.defaultBorderRadius),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -57,8 +62,7 @@ class AppThemes {
             borderRadius:
                 BorderRadius.circular(AppConstants.defaultBorderRadius),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -83,25 +87,34 @@ class AppThemes {
         fillColor: AppColors.surface,
       ),
       tabBarTheme: const TabBarTheme(
-        labelColor: AppColors.textOnPrimary,
-        unselectedLabelColor: AppColors.textOnPrimary,
-        indicatorColor: AppColors.textOnPrimary,
+        labelColor: Color(0xFF212121),           // dark selected tab text
+        unselectedLabelColor: Color(0xFF757575), // grey unselected tab text
+        indicatorColor: AppColors.primaryGreen,  // green underline indicator
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.primaryGreen,
+        unselectedItemColor: Color(0xFF9E9E9E),
       ),
     );
   }
 
-  // ─── Dark theme ──────────────────────────────────────────────────────────
+  // ── Dark theme ────────────────────────────────────────────────────────────
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF4CAF50),
+        seedColor: AppColors.primaryGreen,
         brightness: Brightness.dark,
         surface: _darkSurface,
         onSurface: _darkOnSurface,
+        // Explicit primary so colorScheme.primary returns the green, not a
+        // dark seed-derived colour that becomes invisible on dark backgrounds.
+        primary: AppColors.primaryGreenLight,
+        onPrimary: Colors.black,
       ),
 
-      // Scaffold & canvas
+      // Canvas & scaffold
       scaffoldBackgroundColor: _darkBackground,
       canvasColor: _darkBackground,
 
@@ -134,8 +147,7 @@ class AppThemes {
             borderRadius:
                 BorderRadius.circular(AppConstants.defaultBorderRadius),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -146,8 +158,7 @@ class AppThemes {
             borderRadius:
                 BorderRadius.circular(AppConstants.defaultBorderRadius),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -156,7 +167,7 @@ class AppThemes {
         ),
       ),
 
-      // Inputs — dark fill so no white TextField box
+      // Inputs — dark fill so TextField boxes are never white
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius:
@@ -189,33 +200,45 @@ class AppThemes {
         indicatorColor: AppColors.primaryGreenLight,
       ),
 
-      // Dividers & outlines
+      // ── Bottom Navigation Bar ─────────────────────────────────────────────
+      // selectedItemColor is set explicitly to a bright visible green.
+      // Note: main_screen.dart must use colorScheme.primary (not primaryColor)
+      // for this to take effect — which it now does.
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: _darkSurface,
+        selectedItemColor: AppColors.primaryGreenLight,   // bright visible green
+        unselectedItemColor: Color(0xFFAAAAAA),           // light grey
+        selectedLabelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: TextStyle(fontSize: 12),
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
+      ),
+
+      // Dividers
       dividerTheme: const DividerThemeData(
         color: _darkBorder,
         thickness: 1,
       ),
 
-      // BottomNavigationBar
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: _darkSurface,
-        selectedItemColor: AppColors.primaryGreenLight,
-        unselectedItemColor: Color(0xFF9E9E9E),
-      ),
-
       // Chips
-      chipTheme: ChipThemeData(
+      chipTheme: const ChipThemeData(
         backgroundColor: _darkSurfaceVar,
-        labelStyle: const TextStyle(color: _darkOnSurface),
-        side: const BorderSide(color: _darkBorder),
+        labelStyle: TextStyle(color: _darkOnSurface),
+        side: BorderSide(color: _darkBorder),
       ),
 
       // Dialogs
       dialogTheme: const DialogTheme(
         backgroundColor: _darkSurface,
         titleTextStyle: TextStyle(
-            color: _darkOnSurface,
-            fontSize: 20,
-            fontWeight: FontWeight.bold),
+          color: _darkOnSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
         contentTextStyle: TextStyle(color: _darkOnSurface),
       ),
 
@@ -225,24 +248,24 @@ class AppThemes {
         contentTextStyle: TextStyle(color: _darkOnSurface),
       ),
 
-      // Icon
+      // Icons
       iconTheme: const IconThemeData(color: _darkOnSurface),
 
       // Text
       textTheme: const TextTheme(
-        bodyLarge:  TextStyle(color: _darkOnSurface),
-        bodyMedium: TextStyle(color: _darkOnSurface),
-        bodySmall:  TextStyle(color: Color(0xFF9E9E9E)),
-        titleLarge: TextStyle(color: _darkOnSurface, fontWeight: FontWeight.bold),
-        titleMedium: TextStyle(color: _darkOnSurface),
-        titleSmall:  TextStyle(color: _darkOnSurface),
+        bodyLarge:     TextStyle(color: _darkOnSurface),
+        bodyMedium:    TextStyle(color: _darkOnSurface),
+        bodySmall:     TextStyle(color: Color(0xFF9E9E9E)),
+        titleLarge:    TextStyle(color: _darkOnSurface, fontWeight: FontWeight.bold),
+        titleMedium:   TextStyle(color: _darkOnSurface),
+        titleSmall:    TextStyle(color: _darkOnSurface),
         headlineSmall: TextStyle(color: _darkOnSurface, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(color: _darkOnSurface, fontWeight: FontWeight.bold),
-        labelLarge: TextStyle(color: _darkOnSurface),
-        labelMedium: TextStyle(color: Color(0xFF9E9E9E)),
+        headlineMedium:TextStyle(color: _darkOnSurface, fontWeight: FontWeight.bold),
+        labelLarge:    TextStyle(color: _darkOnSurface),
+        labelMedium:   TextStyle(color: Color(0xFF9E9E9E)),
       ),
 
-      // FloatingActionButton
+      // FAB
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primaryGreen,
         foregroundColor: Colors.white,

@@ -56,11 +56,11 @@ class MyApp extends StatelessWidget {
           // Controlled by ThemeProvider toggle — NOT the system setting
           themeMode: themeProvider.themeMode,
 
-          // Lock font scale to 1.0 — ignores phone accessibility font size
+          // Lock font scale to 0.85 — ignores phone accessibility font size
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.noScaling,
+                textScaler: TextScaler.linear(0.85),
               ),
               child: child!,
             );
