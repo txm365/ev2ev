@@ -117,6 +117,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
   }
 
   Widget _buildErrorView(MarketplaceProvider provider) {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -133,7 +134,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             child: Text(
               provider.errorMessage ?? 'Unknown error',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: cs.onSurface.withOpacity(0.6)),
             ),
           ),
           const SizedBox(height: 24),
@@ -151,12 +152,15 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
   }
 
   Widget _buildBuyEnergyTab(MarketplaceProvider provider) {
+    final cs = Theme.of(context).colorScheme;
+
     return Column(
       children: [
-        // Search and Filter Bar
+        // ── Search and Filter Bar ─────────────────────────────────────────
         Container(
           padding: const EdgeInsets.all(16),
-          color: Colors.grey[100],
+          // FIX: was Colors.grey[100] (white-ish, stays white in dark mode)
+          color: cs.surfaceContainerHighest,
           child: Column(
             children: [
               TextField(
@@ -167,7 +171,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  // FIX: was Colors.white (hardcoded white box in dark mode)
+                  fillColor: cs.surface,
                 ),
                 onChanged: (value) => provider.updateSearchQuery(value),
               ),
@@ -189,8 +194,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
-                      provider.selectedVehicleType == 'all' 
-                          ? 'All Vehicles' 
+                      provider.selectedVehicleType == 'all'
+                          ? 'All Vehicles'
                           : provider.selectedVehicleType,
                       Icons.electric_car,
                       () => _showVehicleTypeFilter(context, provider),
@@ -202,7 +207,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
           ),
         ),
 
-        // Listings List
+        // ── Listings List ─────────────────────────────────────────────────
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => provider.getNearbyListings(),
@@ -217,7 +222,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         padding: const EdgeInsets.only(bottom: 12),
                         child: ListingCard(
                           listing: listing,
-                          onTap: () => _showEnergyRequestDialog(context, listing, provider),
+                          onTap: () => _showEnergyRequestDialog(
+                              context, listing, provider),
                         ),
                       );
                     },
@@ -228,28 +234,29 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Widget _buildFilterChip(String label, IconData icon, VoidCallback onTap) {
+  // FIX: chip colour now adapts — uses primary from theme instead of fixed AppColors.info
+  Widget _buildFilterChip(
+      String label, IconData icon, VoidCallback onTap) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.info.withValues(alpha: 0.1),
+          color: cs.primary.withOpacity(0.12),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.info,
-            width: 1,
-          ),
+          border: Border.all(color: cs.primary, width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: AppColors.info),
+            Icon(icon, size: 16, color: cs.primary),
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.info,
+              style: TextStyle(
+                color: cs.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -261,24 +268,27 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
   }
 
   Widget _buildEmptyBuyerView(MarketplaceProvider provider) {
+    // FIX: was AppColors.textTertiary / textSecondary — hardcoded dark greys
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_off, size: 64, color: AppColors.textTertiary),
+          Icon(Icons.search_off,
+              size: 64, color: cs.onSurface.withOpacity(0.4)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No energy listings found',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: cs.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Try adjusting your search filters or check back later',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: cs.onSurface.withOpacity(0.5)),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
@@ -305,18 +315,18 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
 
   Widget _buildActiveListingView(MarketplaceProvider provider) {
     final listing = provider.myActiveListing!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Header
+          // Status Header — keeps green/orange intentionally
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: listing.status == 'available' 
+              color: listing.status == 'available'
                   ? AppColors.energyAvailable
                   : AppColors.energyPaused,
               borderRadius: BorderRadius.circular(12),
@@ -324,7 +334,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             child: Row(
               children: [
                 Icon(
-                  listing.status == 'available' ? Icons.check_circle : Icons.pause_circle,
+                  listing.status == 'available'
+                      ? Icons.check_circle
+                      : Icons.pause_circle,
                   color: Colors.white,
                   size: 32,
                 ),
@@ -334,7 +346,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        listing.status == 'available' ? 'Listing Active' : 'Listing Paused',
+                        listing.status == 'available'
+                            ? 'Listing Active'
+                            : 'Listing Paused',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -342,13 +356,11 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         ),
                       ),
                       Text(
-                        listing.status == 'available' 
+                        listing.status == 'available'
                             ? 'Your energy is available for buyers'
                             : 'Your listing is currently paused',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
+                            color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
@@ -357,7 +369,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Listing Details Card
           Card(
             child: Padding(
@@ -368,16 +380,25 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: _buildDetailColumn(
-                          'Price per kWh',
-                          'R${listing.pricePerKwh.toStringAsFixed(2)}',
-                        ),
+                        child: _buildDetailColumn('Price per kWh',
+                            'R${listing.pricePerKwh.toStringAsFixed(2)}'),
                       ),
                       Expanded(
-                        child: _buildDetailColumn(
-                          'Available Energy',
-                          '${listing.availableEnergy.toStringAsFixed(1)} kWh',
-                        ),
+                        child: _buildDetailColumn('Available Energy',
+                            '${listing.availableEnergy.toStringAsFixed(1)} kWh'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDetailColumn('Min Sale',
+                            '${listing.minEnergySale.toStringAsFixed(1)} kWh'),
+                      ),
+                      Expanded(
+                        child: _buildDetailColumn('Max Sale',
+                            '${listing.maxEnergySale.toStringAsFixed(1)} kWh'),
                       ),
                     ],
                   ),
@@ -386,60 +407,37 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     children: [
                       Expanded(
                         child: _buildDetailColumn(
-                          'Min Sale',
-                          '${listing.minEnergySale.toStringAsFixed(1)} kWh',
-                        ),
+                            'Vehicle Type', listing.vehicleType),
                       ),
                       Expanded(
                         child: _buildDetailColumn(
-                          'Max Sale',
-                          '${listing.maxEnergySale.toStringAsFixed(1)} kWh',
-                        ),
+                            'Connector', listing.connectorType),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDetailColumn(
-                          'Vehicle Type',
-                          listing.vehicleType,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildDetailColumn(
-                          'Connector',
-                          listing.connectorType,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (listing.description != null && listing.description!.isNotEmpty) ...[
+                  if (listing.description != null &&
+                      listing.description!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: 0.1),
+                        color: AppColors.info.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: AppColors.info.withOpacity(0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Description:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.info,
-                            ),
-                          ),
+                          const Text('Description:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.info)),
                           const SizedBox(height: 4),
-                          Text(
-                            listing.description!,
-                            style: const TextStyle(color: AppColors.info),
-                          ),
+                          Text(listing.description!,
+                              style:
+                                  const TextStyle(color: AppColors.info)),
                         ],
                       ),
                     ),
@@ -449,50 +447,63 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             ),
           ),
           const SizedBox(height: 20),
-          
-          // Received Requests Section
+
+          // Received Requests
           if (provider.receivedRequests.isNotEmpty) ...[
             Text(
               'Received Requests (${provider.receivedRequests.length})',
               style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+                  fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             ...provider.receivedRequests.map((request) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: RequestCard(
-                request: request,
-                isReceived: true,
-                onAccept: () => _handleRequestResponse(context, provider, request.id, 'accepted'),
-                onReject: () => _handleRequestResponse(context, provider, request.id, 'rejected'),
-                onViewOnMap: request.status == 'accepted' 
-                    ? () => _handleViewOnMap(context, request)
-                    : null,
-              ),
-            )),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: RequestCard(
+                    request: request,
+                    isReceived: true,
+                    onAccept: () => _handleRequestResponse(
+                        context, provider, request.id, 'accepted'),
+                    onReject: () => _handleRequestResponse(
+                        context, provider, request.id, 'rejected'),
+                    onViewOnMap: request.status == 'accepted'
+                        ? () => _handleViewOnMap(context, request)
+                        : null,
+                  ),
+                )),
           ] else ...[
-            const Card(
+            // FIX: was hardcoded AppColors.textTertiary / textSecondary
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    Icon(Icons.inbox, size: 48, color: AppColors.textTertiary),
-                    SizedBox(height: 12),
+                    Icon(Icons.inbox,
+                        size: 48,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.4)),
+                    const SizedBox(height: 12),
                     Text(
                       'No requests yet',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7),
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Buyers will see your listing and can send requests',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.5)),
                     ),
                   ],
                 ),
@@ -500,19 +511,28 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             ),
           ],
           const SizedBox(height: 20),
-          
+
           // Action Buttons
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _toggleListingStatus(context, provider, listing.status),
-                  icon: Icon(listing.status == 'available' ? Icons.pause : Icons.play_arrow),
-                  label: Text(listing.status == 'available' ? 'Pause' : 'Resume'),
+                  onPressed: () => _toggleListingStatus(
+                      context, provider, listing.status),
+                  icon: Icon(listing.status == 'available'
+                      ? Icons.pause
+                      : Icons.play_arrow),
+                  label: Text(listing.status == 'available'
+                      ? 'Pause'
+                      : 'Resume'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: listing.status == 'available' ? AppColors.warning : AppColors.success,
+                    foregroundColor: listing.status == 'available'
+                        ? AppColors.warning
+                        : AppColors.success,
                     side: BorderSide(
-                      color: listing.status == 'available' ? AppColors.warning : AppColors.success,
+                      color: listing.status == 'available'
+                          ? AppColors.warning
+                          : AppColors.success,
                     ),
                   ),
                 ),
@@ -520,7 +540,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _showEditListingDialog(context, provider, listing),
+                  onPressed: () =>
+                      _showEditListingDialog(context, provider, listing),
                   icon: const Icon(Icons.edit),
                   label: const Text('Edit'),
                 ),
@@ -528,7 +549,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _showDeleteConfirmation(context, provider),
+                  onPressed: () =>
+                      _showDeleteConfirmation(context, provider),
                   icon: const Icon(Icons.delete),
                   label: const Text('Delete'),
                   style: OutlinedButton.styleFrom(
@@ -544,53 +566,52 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Widget _buildCreateListingView(BuildContext context, MarketplaceProvider provider) {
+  Widget _buildCreateListingView(
+      BuildContext context, MarketplaceProvider provider) {
+    // FIX: was AppColors.textSecondary (hardcoded dark grey)
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.electric_bolt,
-              size: 80,
-              color: AppColors.primaryGreen,
-            ),
+            const Icon(Icons.electric_bolt,
+                size: 80, color: AppColors.primaryGreen),
             const SizedBox(height: 24),
             const Text(
               'Start Selling Energy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style:
+                  TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Create your first energy listing and start earning!\nSet your price, availability, and start earning!',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: cs.onSurface.withOpacity(0.6),
                 fontSize: 16,
                 height: 1.5,
               ),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () => _showCreateListingDialog(context, provider),
+              onPressed: () =>
+                  _showCreateListingDialog(context, provider),
               icon: const Icon(Icons.add),
               label: const Text(AppStrings.createListing),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryGreen,
                 foregroundColor: AppColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 16),
+                textStyle: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
             const SizedBox(height: 16),
             TextButton.icon(
-              onPressed: () {
-                // Show tips dialog or navigate to help
-              },
+              onPressed: () {},
               icon: const Icon(Icons.help_outline),
               label: const Text('Tips for selling energy'),
             ),
@@ -600,14 +621,16 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
+  // FIX: was AppColors.textSecondary (hardcoded dark grey)
   Widget _buildDetailColumn(String label, String value) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: cs.onSurface.withOpacity(0.6),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -616,15 +639,15 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         Text(
           value,
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+              fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ],
     );
   }
 
   Widget _buildMyRequestsTab(MarketplaceProvider provider) {
+    // FIX: was AppColors.textTertiary / textSecondary
+    final cs = Theme.of(context).colorScheme;
     return RefreshIndicator(
       onRefresh: () => provider.getMyRequests(),
       child: provider.myRequests.isEmpty
@@ -632,20 +655,22 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.request_page, size: 64, color: AppColors.textTertiary),
+                  Icon(Icons.request_page,
+                      size: 64, color: cs.onSurface.withOpacity(0.4)),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'No requests yet',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurface.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Browse the Buy Energy tab to request energy from sellers',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style:
+                        TextStyle(color: cs.onSurface.withOpacity(0.5)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
@@ -666,11 +691,12 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                   child: RequestCard(
                     request: request,
                     isReceived: false,
-                    onViewOnMap: request.status == 'accepted' 
+                    onViewOnMap: request.status == 'accepted'
                         ? () => _handleViewOnMap(context, request)
                         : null,
                     onCancel: request.status == 'pending'
-                        ? () => _handleCancelRequest(context, provider, request.id)
+                        ? () => _handleCancelRequest(
+                            context, provider, request.id)
                         : null,
                   ),
                 );
@@ -680,27 +706,31 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
   }
 
   Widget _buildHistoryTab(MarketplaceProvider provider) {
+    // FIX: was AppColors.textTertiary / textSecondary
+    final cs = Theme.of(context).colorScheme;
     return RefreshIndicator(
       onRefresh: () => provider.getMyTransactions(),
       child: provider.myTransactions.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history, size: 64, color: AppColors.textTertiary),
-                  SizedBox(height: 16),
+                  Icon(Icons.history,
+                      size: 64, color: cs.onSurface.withOpacity(0.4)),
+                  const SizedBox(height: 16),
                   Text(
                     'No transaction history',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurface.withOpacity(0.7),
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Your completed energy trades will appear here',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style:
+                        TextStyle(color: cs.onSurface.withOpacity(0.5)),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -715,28 +745,32 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: transaction.status == 'completed' 
-                          ? AppColors.success 
-                          : AppColors.warning,
+                      backgroundColor:
+                          transaction.status == 'completed'
+                              ? AppColors.success
+                              : AppColors.warning,
                       child: Icon(
-                        transaction.status == 'completed' 
-                            ? Icons.check 
+                        transaction.status == 'completed'
+                            ? Icons.check
                             : Icons.hourglass_empty,
                         color: Colors.white,
                       ),
                     ),
                     title: Text(
-                      transaction.sellerName ?? transaction.buyerName ?? 'Energy Trade',
+                      transaction.sellerName ??
+                          transaction.buyerName ??
+                          'Energy Trade',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Energy: ${transaction.energyTransferred?.toStringAsFixed(1) ?? 0} kWh'),
+                        Text(
+                            'Energy: ${transaction.energyTransferred?.toStringAsFixed(1) ?? 0} kWh'),
                         Text(
                           transaction.status.toUpperCase(),
                           style: TextStyle(
-                            color: transaction.status == 'completed' 
+                            color: transaction.status == 'completed'
                                 ? AppColors.success
                                 : AppColors.warning,
                             fontSize: 12,
@@ -747,7 +781,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     trailing: transaction.totalAmount != null
                         ? Text(
                             'R${transaction.totalAmount!.toStringAsFixed(2)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold),
                           )
                         : null,
                   ),
@@ -757,17 +792,17 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  // ============================================================================
+  // ==========================================================================
   // DIALOG AND ACTION METHODS
-  // ============================================================================
+  // ==========================================================================
 
-  void _showCreateListingDialog(BuildContext context, MarketplaceProvider provider) {
+  void _showCreateListingDialog(
+      BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => CreateListingDialog(
         onSubmit: (data) async {
           Navigator.of(context).pop();
-          
           final success = await provider.createEnergyListing(
             pricePerKwh: data['pricePerKwh'],
             availableEnergy: data['availableEnergy'],
@@ -778,7 +813,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             availabilityEnd: data['availabilityEnd'],
             description: data['description'],
           );
-
           if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -793,14 +827,13 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showEditListingDialog(BuildContext context, MarketplaceProvider provider, EnergyListing listing) {
+  void _showEditListingDialog(BuildContext context,
+      MarketplaceProvider provider, EnergyListing listing) {
     showDialog(
       context: context,
       builder: (context) => CreateListingDialog(
-        // Pass listing data as initial values instead of existingListing parameter
         onSubmit: (data) async {
           Navigator.of(context).pop();
-          
           final success = await provider.updateEnergyListing(
             listingId: listing.id,
             pricePerKwh: data['pricePerKwh'],
@@ -812,7 +845,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             availabilityEnd: data['availabilityEnd'],
             description: data['description'],
           );
-
           if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -826,14 +858,14 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, MarketplaceProvider provider) {
+  void _showDeleteConfirmation(
+      BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Listing'),
         content: const Text(
-          'Are you sure you want to delete your energy listing?\nThis action cannot be undone.'
-        ),
+            'Are you sure you want to delete your energy listing?\nThis action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -842,7 +874,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.of(context).pop();
-              
               final success = await provider.deleteMyListing();
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -864,23 +895,27 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Future<void> _toggleListingStatus(BuildContext context, MarketplaceProvider provider, String currentStatus) async {
-    final newStatus = currentStatus == 'available' ? 'paused' : 'available';
+  Future<void> _toggleListingStatus(BuildContext context,
+      MarketplaceProvider provider, String currentStatus) async {
+    final newStatus =
+        currentStatus == 'available' ? 'paused' : 'available';
     final success = await provider.updateListingStatus(newStatus);
-    
     if (success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Listing ${newStatus == 'available' ? 'resumed' : 'paused'} successfully'),
+          content: Text(
+              'Listing ${newStatus == 'available' ? 'resumed' : 'paused'} successfully'),
           backgroundColor: AppColors.success,
         ),
       );
     }
   }
 
-  Future<void> _handleRequestResponse(BuildContext context, MarketplaceProvider provider, String requestId, String status) async {
-    final success = await provider.respondToRequest(requestId, status);
-    
+  Future<void> _handleRequestResponse(BuildContext context,
+      MarketplaceProvider provider, String requestId,
+      String status) async {
+    final success =
+        await provider.respondToRequest(requestId, status);
     if (success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -891,21 +926,20 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     }
   }
 
-  void _showEnergyRequestDialog(BuildContext context, EnergyListing listing, MarketplaceProvider provider) {
+  void _showEnergyRequestDialog(BuildContext context,
+      EnergyListing listing, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => EnergyRequestDialog(
         listing: listing,
         onSubmit: (data) async {
           Navigator.of(context).pop();
-          
           final success = await provider.createEnergyRequest(
             listingId: data['listingId'],
             requestedEnergy: data['requestedEnergy'],
             offeredPricePerKwh: data['offeredPricePerKwh'],
             message: data['message'],
           );
-
           if (success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -920,12 +954,14 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  Future<void> _handleCancelRequest(BuildContext context, MarketplaceProvider provider, String requestId) async {
+  Future<void> _handleCancelRequest(BuildContext context,
+      MarketplaceProvider provider, String requestId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Request'),
-        content: const Text('Are you sure you want to cancel this energy request?'),
+        content: const Text(
+            'Are you sure you want to cancel this energy request?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -944,7 +980,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
 
     if (confirmed == true && context.mounted) {
-      // Note: Cancel request functionality needs to be implemented in marketplace_provider
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Request cancellation feature coming soon'),
@@ -954,13 +989,15 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     }
   }
 
-  /// Handle "View on Map" button for accepted requests
-  Future<void> _handleViewOnMap(BuildContext context, EnergyRequest request) async {
-    final mapProvider = Provider.of<MapProvider>(context, listen: false);
-    final marketplaceProvider = Provider.of<MarketplaceProvider>(context, listen: false);
-    
-    // Validate that we have seller location
-    if (request.sellerLocationLat == null || request.sellerLocationLng == null) {
+  Future<void> _handleViewOnMap(
+      BuildContext context, EnergyRequest request) async {
+    final mapProvider =
+        Provider.of<MapProvider>(context, listen: false);
+    final marketplaceProvider =
+        Provider.of<MarketplaceProvider>(context, listen: false);
+
+    if (request.sellerLocationLat == null ||
+        request.sellerLocationLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Seller location not available'),
@@ -970,10 +1007,10 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       return;
     }
 
-    // Get current location (buyer's location)
     Position? currentPosition = marketplaceProvider.currentPosition;
     if (currentPosition == null) {
-      currentPosition = await marketplaceProvider.getCurrentLocation();
+      currentPosition =
+          await marketplaceProvider.getCurrentLocation();
       if (currentPosition == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -987,31 +1024,30 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       }
     }
 
-    // Set route in map provider
-    final buyerLocation = LatLng(currentPosition.latitude, currentPosition.longitude);
-    final sellerLocation = LatLng(request.sellerLocationLat!, request.sellerLocationLng!);
-    
+    final buyerLocation = LatLng(
+        currentPosition.latitude, currentPosition.longitude);
+    final sellerLocation = LatLng(
+        request.sellerLocationLat!, request.sellerLocationLng!);
+
     mapProvider.setRouteFromCoordinates(
       start: buyerLocation,
       end: sellerLocation,
       destinationName: request.sellerName ?? 'Seller',
     );
 
-    // Navigate to map page - use the public method
     if (context.mounted) {
-      final mainScreenState = context.findAncestorStateOfType<MainScreenState>();
-      if (mainScreenState != null) {
-        // Call the method that MainScreenState exposes
-        mainScreenState.navigateToTab(2); // Switch to map tab
-      }
+      final mainScreenState =
+          context.findAncestorStateOfType<MainScreenState>();
+      mainScreenState?.navigateToTab(2);
     }
   }
 
-  // ============================================================================
+  // ==========================================================================
   // FILTER DIALOGS
-  // ============================================================================
+  // ==========================================================================
 
-  void _showDistanceFilter(BuildContext context, MarketplaceProvider provider) {
+  void _showDistanceFilter(
+      BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1046,7 +1082,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showPriceFilter(BuildContext context, MarketplaceProvider provider) {
+  void _showPriceFilter(
+      BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1056,7 +1093,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('R${provider.maxPrice.toStringAsFixed(1)} per kWh'),
+                Text(
+                    'R${provider.maxPrice.toStringAsFixed(1)} per kWh'),
                 Slider(
                   value: provider.maxPrice,
                   min: 0.5,
@@ -1081,7 +1119,8 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     );
   }
 
-  void _showVehicleTypeFilter(BuildContext context, MarketplaceProvider provider) {
+  void _showVehicleTypeFilter(
+      BuildContext context, MarketplaceProvider provider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1094,16 +1133,20 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             'Electric Van',
             'Electric Truck',
             'Electric Bus',
-          ].map((type) => ListTile(
-            title: Text(type == 'all' ? 'All Vehicles' : type),
-            onTap: () {
-              provider.updateVehicleTypeFilter(type);
-              Navigator.of(context).pop();
-            },
-            trailing: provider.selectedVehicleType == type 
-                ? const Icon(Icons.check, color: AppColors.success)
-                : null,
-          )).toList(),
+          ]
+              .map((type) => ListTile(
+                    title:
+                        Text(type == 'all' ? 'All Vehicles' : type),
+                    onTap: () {
+                      provider.updateVehicleTypeFilter(type);
+                      Navigator.of(context).pop();
+                    },
+                    trailing: provider.selectedVehicleType == type
+                        ? const Icon(Icons.check,
+                            color: AppColors.success)
+                        : null,
+                  ))
+              .toList(),
         ),
       ),
     );

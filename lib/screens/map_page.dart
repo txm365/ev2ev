@@ -1,6 +1,7 @@
 // lib/screens/map_page.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/map_provider.dart';
 import '../providers/bluetooth_provider.dart';
 
@@ -231,6 +233,142 @@ class MapPageState extends State<MapPage> {
     );
   }
 
+  /// Show navigation app selection dialog
+  void _showNavigationOptions() {
+    if (_mapProvider.selectedPoint == null) return;
+
+    final destination = _mapProvider.selectedPoint!;
+    final destinationName = _mapProvider.destinationName ?? 'Destination';
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Choose Navigation App',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.map, color: Colors.blue),
+                title: const Text('Google Maps'),
+                subtitle: const Text('Navigate with Google Maps'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _launchGoogleMaps(destination, destinationName);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.navigation, color: Colors.cyan),
+                title: const Text('Waze'),
+                subtitle: const Text('Navigate with Waze'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _launchWaze(destination, destinationName);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.apple, color: Colors.grey),
+                title: const Text('Apple Maps'),
+                subtitle: const Text('Navigate with Apple Maps'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _launchAppleMaps(destination, destinationName);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Launch Google Maps with destination
+  Future<void> _launchGoogleMaps(LatLng destination, String label) async {
+    final lat = destination.latitude;
+    final lng = destination.longitude;
+    
+    // Try Google Maps app first
+    final googleMapsUrl = Uri.parse('google.navigation:q=$lat,$lng');
+    final googleMapsWebUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+    
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(googleMapsWebUrl)) {
+        await launchUrl(googleMapsWebUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch Google Maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google Maps not available')),
+        );
+      }
+    }
+  }
+
+  /// Launch Waze with destination
+  Future<void> _launchWaze(LatLng destination, String label) async {
+    final lat = destination.latitude;
+    final lng = destination.longitude;
+    
+    // Waze URL scheme
+    final wazeUrl = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+    final wazeWebUrl = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
+    
+    try {
+      if (await canLaunchUrl(wazeUrl)) {
+        await launchUrl(wazeUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(wazeWebUrl)) {
+        await launchUrl(wazeWebUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch Waze';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Waze not installed. Please install Waze from the app store.')),
+        );
+      }
+    }
+  }
+
+  /// Launch Apple Maps with destination (iOS only)
+  Future<void> _launchAppleMaps(LatLng destination, String label) async {
+    final lat = destination.latitude;
+    final lng = destination.longitude;
+    
+    if (Platform.isIOS) {
+      // Apple Maps URL scheme
+      final appleMapsUrl = Uri.parse('http://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
+      
+      try {
+        if (await canLaunchUrl(appleMapsUrl)) {
+          await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
+        } else {
+          throw 'Could not launch Apple Maps';
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Apple Maps not available')),
+          );
+        }
+      }
+    } else {
+      // On Android, fall back to Google Maps
+      _launchGoogleMaps(destination, label);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -428,11 +566,7 @@ class MapPageState extends State<MapPage> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Navigation feature coming soon!')),
-                    );
-                  },
+                  onPressed: _showNavigationOptions,
                 ),
               ),
             ],

@@ -42,6 +42,40 @@
 
             <data android:mimeType="text/plain" />
         </intent>
+
+        <!-- Navigation Apps Queries -->
+        <!-- Google Maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="google.navigation" />
+        </intent>
+
+        <!-- Waze -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="waze" />
+        </intent>
+
+        <!-- General HTTP/HTTPS for web fallbacks -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="https" />
+        </intent>
+
+        <!-- Geo URI scheme for maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data android:scheme="geo" />
+        </intent>
     </queries>
 
     <permission

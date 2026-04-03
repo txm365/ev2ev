@@ -23,6 +23,8 @@ class RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAccepted = request.status.toLowerCase() == 'accepted';
+    
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: 2,
@@ -47,24 +49,70 @@ class RequestCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        isReceived 
-                            ? (request.buyerName ?? 'Buyer')
-                            : (request.sellerName ?? 'Seller'),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      // Show both names when accepted
+                      if (isAccepted && request.buyerName != null && request.sellerName != null) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.person, size: 14, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Buyer: ',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              request.buyerName!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        isReceived 
-                            ? 'Wants to buy energy'
-                            : 'Your energy request',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.store, size: 14, color: Colors.green),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Seller: ',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              request.sellerName!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                      ] else ...[
+                        // Show single name for pending/rejected
+                        Text(
+                          isReceived 
+                              ? (request.buyerName ?? 'Buyer')
+                              : (request.sellerName ?? 'Seller'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          isReceived 
+                              ? 'Wants to buy energy'
+                              : 'Your energy request',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -72,6 +120,47 @@ class RequestCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+
+            // Show trade details section for accepted requests
+            if (isAccepted) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Trade Confirmed',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'Ready for energy exchange',
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             Container(
               padding: const EdgeInsets.all(12),
@@ -185,7 +274,7 @@ class RequestCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getStatusColor().withOpacity(0.1),
+        color: _getStatusColor().withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _getStatusColor(), width: 1.5),
       ),

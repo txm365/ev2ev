@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
 
-// Explicit relative imports
 import './dashboard_page.dart';
-import '../screens/marketplace_screen.dart'; 
+import './marketplace_screen.dart';
 import './map_page.dart';
 import './profile_screen.dart';
 import '../providers/marketplace_provider.dart' as mp;
@@ -18,16 +17,19 @@ class MainScreen extends StatefulWidget {
   MainScreenState createState() => MainScreenState();
 }
 
-class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class MainScreenState extends State<MainScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedIndex = 0;
   late PageController _pageController;
   late AnimationController _fabAnimationController;
   late Animation<double> _fabAnimation;
-  
-  // Auto-routing state
+
+  // ── FIX: Cache provider references so dispose() never touches context ──
+  bt.BluetoothProvider? _bluetoothProvider;
+  mp.MarketplaceProvider? _marketplaceProvider;
+
   bool _hasShownConnectionSuccessDialog = false;
 
-  // Pages list with marketplace included
   static final List<Widget> _pages = [
     const DashboardPage(),
     const MarketplaceScreen(),
@@ -35,7 +37,6 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
     const ProfileScreen(),
   ];
 
-  // Navigation items with updated map section
   static const List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(
       icon: Icon(Icons.dashboard),
@@ -63,72 +64,45 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     _pageController = PageController(initialPage: _selectedIndex);
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _fabAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _fabAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+          parent: _fabAnimationController, curve: Curves.easeInOut),
     );
 
-    // Initialize Bluetooth provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-      bluetoothProvider.initialize();
-      
-      // Listen for connection state changes
-      bluetoothProvider.addListener(_handleBluetoothStateChange);
+      // Cache both providers immediately — used in dispose() and callbacks
+      _bluetoothProvider =
+          Provider.of<bt.BluetoothProvider>(context, listen: false);
+      _marketplaceProvider =
+          Provider.of<mp.MarketplaceProvider>(context, listen: false);
+
+      _bluetoothProvider?.initialize();
+      _bluetoothProvider?.addListener(_handleBluetoothStateChanges);
     });
+
+    _updateFabVisibility();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _pageController.dispose();
-    _fabAnimationController.dispose();
-    
-    // Remove bluetooth listener
-    final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-    bluetoothProvider.removeListener(_handleBluetoothStateChange);
-    
-    super.dispose();
-  }
+  // ── Uses cached reference — no context lookup ──
+  void _handleBluetoothStateChanges() {
+    if (!mounted) return;
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    if (state == AppLifecycleState.resumed) {
-      // App resumed from background
-      final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-      if (!bluetoothProvider.isConnected) {
-        // Optionally reconnect
-      }
-    } else if (state == AppLifecycleState.paused) {
-      // App going to background
-    }
-  }
+    if (_bluetoothProvider == null) return;
 
-  void _handleBluetoothStateChange() {
-    final bluetoothProvider = Provider.of<bt.BluetoothProvider>(context, listen: false);
-    
-    // Show connection success dialog once
-    if (bluetoothProvider.isConnected && 
-        !_hasShownConnectionSuccessDialog && 
-        mounted) {
+    if (_bluetoothProvider!.isConnected &&
+        !_hasShownConnectionSuccessDialog &&
+        _selectedIndex != 0) {
       _hasShownConnectionSuccessDialog = true;
-      
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showConnectionSuccessDialog();
-        }
-      });
+      _showConnectionSuccessDialog();
     }
-    
-    // Reset flag when disconnected
-    if (!bluetoothProvider.isConnected) {
+
+    if (!_bluetoothProvider!.isConnected) {
       _hasShownConnectionSuccessDialog = false;
     }
   }
@@ -136,59 +110,86 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
   void _showConnectionSuccessDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 10),
-              Text('Connected Successfully'),
-            ],
-          ),
-          content: const Text(
-            'Your device is now connected and streaming data. You can view real-time information on the dashboard.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Connected Successfully'),
           ],
-        );
-      },
+        ),
+        content: const Text(
+          'Your EV is now connected and ready for energy trading. '
+          'You can view real-time data on the Dashboard.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _onItemTapped(0);
+            },
+            child: const Text('View Dashboard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
-  // Public method for navigation from other screens (e.g., marketplace)
-  void navigateToTab(int index) {
-    if (index >= 0 && index < _pages.length) {
-      setState(() {
-        _selectedIndex = index;
-      });
-      _pageController.jumpToPage(index);
-      
-      if (index == 1) {
-        _fabAnimationController.forward();
-      } else {
-        _fabAnimationController.reverse();
-      }
+  void _updateFabVisibility() {
+    if (_selectedIndex == 1) {
+      _fabAnimationController.forward();
+    } else {
+      _fabAnimationController.reverse();
     }
   }
 
+  // ── dispose() only uses cached references — context is never touched ──
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    _fabAnimationController.dispose();
+
+    // Safe: uses the cached field, not Provider.of(context)
+    _bluetoothProvider?.removeListener(_handleBluetoothStateChanges);
+
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed && _selectedIndex == 1) {
+      // Safe: uses the cached field
+      _marketplaceProvider?.refreshAll();
+    }
+  }
+
+  /// Public method so child screens (e.g. MarketplaceScreen) can switch tabs.
+  void navigateToTab(int index) => _onItemTapped(index);
+
   void _onItemTapped(int index) {
-    navigateToTab(index);
+    setState(() {
+      _selectedIndex = index;
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      _updateFabVisibility();
+    });
   }
 
   void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
+      _updateFabVisibility();
     });
-    
-    if (index == 1) {
-      _fabAnimationController.forward();
-    } else {
-      _fabAnimationController.reverse();
-    }
   }
 
   @override
@@ -199,38 +200,40 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
         onPageChanged: _onPageChanged,
         children: _pages,
       ),
-      bottomNavigationBar: Consumer<mp.MarketplaceProvider>(
-        builder: (context, marketplaceProvider, child) {
+      bottomNavigationBar: Consumer2<bt.BluetoothProvider,
+          mp.MarketplaceProvider>(
+        builder: (context, bluetoothProvider, marketplaceProvider, child) {
           final pendingRequestsCount = marketplaceProvider.receivedRequests
-              .where((req) => req.status == 'pending')
+              .where((r) => r.status == 'pending')
               .length;
 
           return BottomNavigationBar(
             items: _navItems.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
-              
-              // Add badge to Marketplace tab if there are pending requests
+
               if (index == 1 && pendingRequestsCount > 0) {
                 return BottomNavigationBarItem(
                   icon: badges.Badge(
                     badgeContent: Text(
                       pendingRequestsCount.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10),
                     ),
                     child: item.icon,
                   ),
                   activeIcon: badges.Badge(
                     badgeContent: Text(
                       pendingRequestsCount.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 10),
                     ),
                     child: item.activeIcon,
                   ),
                   label: item.label,
                 );
               }
-              
+
               return item;
             }).toList(),
             currentIndex: _selectedIndex,
@@ -246,10 +249,7 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
         child: Consumer<mp.MarketplaceProvider>(
           builder: (context, provider, child) {
             return FloatingActionButton.extended(
-              onPressed: () {
-                // Navigate to create listing or show quick actions
-                _showMarketplaceQuickActions(provider);
-              },
+              onPressed: () => _showMarketplaceQuickActions(provider),
               icon: const Icon(Icons.add),
               label: const Text('Quick Action'),
               backgroundColor: Theme.of(context).primaryColor,
@@ -275,13 +275,12 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: const Icon(Icons.add_circle, color: Colors.green),
+              leading:
+                  const Icon(Icons.add_circle, color: Colors.green),
               title: const Text('Create Energy Listing'),
               subtitle: const Text('Sell your excess energy'),
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to marketplace and trigger create listing
-                navigateToTab(1);
               },
             ),
             ListTile(
@@ -291,13 +290,14 @@ class MainScreenState extends State<MainScreen> with TickerProviderStateMixin, W
               onTap: () {
                 Navigator.pop(context);
                 provider.getNearbyListings();
-                navigateToTab(1);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.refresh, color: Colors.orange),
+              leading:
+                  const Icon(Icons.refresh, color: Colors.orange),
               title: const Text('Refresh Marketplace'),
-              subtitle: const Text('Update listings and requests'),
+              subtitle:
+                  const Text('Update listings and requests'),
               onTap: () {
                 Navigator.pop(context);
                 provider.refreshAll();
