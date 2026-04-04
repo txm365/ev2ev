@@ -27,23 +27,17 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
   DateTime? _availabilityEnd;
   bool _isSubmitting = false;
 
-  final List<String> _vehicleTypes = [
-    'Electric Car',
-    'Electric Van',
-    'Electric Truck',
-    'Electric Bus',
-    'Electric Motorcycle',
-    'Hybrid Vehicle',
+  static const _vehicleTypes = [
+    'Electric Car', 'Electric Van', 'Electric Truck',
+    'Electric Bus', 'Electric Motorcycle', 'Hybrid Vehicle',
   ];
 
-  final List<String> _connectorTypes = [
-    'Type 2',
-    'CCS',
-    'CHAdeMO',
-    'Tesla Supercharger',
-    'Type 1',
-    'CEE',
+  static const _connectorTypes = [
+    'Type 2', 'CCS', 'CHAdeMO',
+    'Tesla Supercharger', 'Type 1', 'CEE',
   ];
+
+  static const _green = Color(0xFF2E7D32);
 
   @override
   void dispose() {
@@ -55,7 +49,7 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
     super.dispose();
   }
 
-  // ── Availability picker — guarded against use-after-dispose ──────────────
+  // ── Availability picker ───────────────────────────────────────────────────
   Future<void> _selectAvailabilityEnd() async {
     final now = DateTime.now();
     final selectedDate = await showDatePicker(
@@ -64,28 +58,19 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
     );
-
-    // Guard: widget may have been disposed while the date picker was open
     if (!mounted) return;
-
     if (selectedDate != null) {
       final selectedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(
             _availabilityEnd ?? now.add(const Duration(hours: 1))),
       );
-
-      // Guard: widget may have been disposed while the time picker was open
       if (!mounted) return;
-
       if (selectedTime != null) {
         setState(() {
           _availabilityEnd = DateTime(
-            selectedDate.year,
-            selectedDate.month,
-            selectedDate.day,
-            selectedTime.hour,
-            selectedTime.minute,
+            selectedDate.year, selectedDate.month, selectedDate.day,
+            selectedTime.hour, selectedTime.minute,
           );
         });
       }
@@ -94,11 +79,9 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isSubmitting = true);
-
     try {
-      final data = {
+      widget.onSubmit({
         'pricePerKwh': double.parse(_priceController.text),
         'availableEnergy': double.parse(_availableEnergyController.text),
         'minEnergySale': double.parse(_minEnergyController.text),
@@ -109,387 +92,395 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
         'description': _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-      };
-
-      widget.onSubmit(data);
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Header ──────────────────────────────────────────────────
-            Row(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Green gradient header ────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 12, 20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_green, Color(0xFF43A047)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
               children: [
-                const Icon(Icons.add_circle, color: Colors.green, size: 28),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.bolt_rounded,
+                      color: Colors.white, size: 26),
+                ),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text(
-                    'Create Energy Listing',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Create Energy Listing',
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      Text('Set your price and availability',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xCCFFFFFF))),
+                    ],
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Colors.white),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+          ),
 
-            // ── Form ────────────────────────────────────────────────────
-            Expanded(
+          // ── Scrollable form ──────────────────────────────────────────────
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Price
-                      _buildSectionHeader('Pricing'),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _priceController,
-                        label: 'Price per kWh',
-                        prefix: 'R',
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Please enter a price';
-                          }
-                          if (double.tryParse(v) == null) {
-                            return 'Please enter a valid number';
-                          }
-                          return null;
-                        },
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
-                      const SizedBox(height: 24),
+                    // ── Pricing ─────────────────────────────────────────
+                    _sectionLabel(cs, Icons.bolt, Colors.amber[700]!, 'Pricing'),
+                    const SizedBox(height: 10),
+                    _field(
+                      controller: _priceController,
+                      label: 'Price per kWh',
+                      prefix: 'R',
+                      suffix: '/kWh',
+                      cs: cs,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Enter a price';
+                        if (double.tryParse(v) == null) return 'Enter a valid number';
+                        return null;
+                      },
+                    ),
 
-                      // Energy amounts
-                      _buildSectionHeader('Energy Amounts'),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _availableEnergyController,
-                        label: 'Available Energy',
-                        suffix: 'kWh',
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Please enter available energy';
-                          }
-                          if (double.tryParse(v) == null) {
-                            return 'Please enter a valid number';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _minEnergyController,
-                              label: 'Min Sale',
-                              suffix: 'kWh',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
+                    const SizedBox(height: 20),
+
+                    // ── Energy amounts ──────────────────────────────────
+                    _sectionLabel(cs, Icons.battery_charging_full, Colors.green, 'Energy Amounts'),
+                    const SizedBox(height: 10),
+                    _field(
+                      controller: _availableEnergyController,
+                      label: 'Total Available Energy',
+                      suffix: 'kWh',
+                      cs: cs,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Enter available energy';
+                        if (double.tryParse(v) == null) return 'Enter a valid number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            controller: _minEnergyController,
+                            label: 'Min Sale',
+                            suffix: 'kWh',
+                            cs: cs,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Required' : null,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _maxEnergyController,
-                              label: 'Max Sale',
-                              suffix: 'kWh',
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Vehicle & connector
-                      _buildSectionHeader('Vehicle Details'),
-                      const SizedBox(height: 12),
-                      _buildDropdown(
-                        label: 'Vehicle Type',
-                        value: _selectedVehicleType,
-                        items: _vehicleTypes,
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() => _selectedVehicleType = v);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDropdown(
-                        label: 'Connector Type',
-                        value: _selectedConnectorType,
-                        items: _connectorTypes,
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() => _selectedConnectorType = v);
-                          }
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Availability
-                      _buildSectionHeader('Availability'),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _field(
+                            controller: _maxEnergyController,
+                            label: 'Max Sale',
+                            suffix: 'kWh',
+                            cs: cs,
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Required' : null,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Vehicle ─────────────────────────────────────────
+                    _sectionLabel(cs, Icons.electric_car, cs.primary, 'Vehicle Details'),
+                    const SizedBox(height: 10),
+                    _dropdown(
+                      cs: cs,
+                      label: 'Vehicle Type',
+                      value: _selectedVehicleType,
+                      items: _vehicleTypes,
+                      onChanged: (v) =>
+                          setState(() => _selectedVehicleType = v!),
+                    ),
+                    const SizedBox(height: 10),
+                    _dropdown(
+                      cs: cs,
+                      label: 'Connector Type',
+                      value: _selectedConnectorType,
+                      items: _connectorTypes,
+                      onChanged: (v) =>
+                          setState(() => _selectedConnectorType = v!),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Availability ────────────────────────────────────
+                    _sectionLabel(cs, Icons.schedule, Colors.teal, 'Availability'),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: _selectAvailabilityEnd,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: cs.outline.withValues(alpha: 0.5)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Available until:',
+                            Icon(Icons.calendar_today,
+                                size: 18,
+                                color: _availabilityEnd != null
+                                    ? _green
+                                    : cs.onSurface.withValues(alpha: 0.4)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _availabilityEnd != null
+                                    ? '${_availabilityEnd!.day}/${_availabilityEnd!.month}/${_availabilityEnd!.year}  '
+                                      '${_availabilityEnd!.hour.toString().padLeft(2, '0')}:${_availabilityEnd!.minute.toString().padLeft(2, '0')}'
+                                    : 'No end time — always available',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _availabilityEnd != null
+                                      ? cs.onSurface
+                                      : cs.onSurface.withValues(alpha: 0.45),
+                                ),
+                              ),
+                            ),
+                            if (_availabilityEnd != null)
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => _availabilityEnd = null),
+                                child: Icon(Icons.close,
+                                    size: 18,
+                                    color: cs.onSurface
+                                        .withValues(alpha: 0.4)),
+                              )
+                            else
+                              Text('Set',
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _availabilityEnd != null
-                                        ? '${_availabilityEnd!.day}/${_availabilityEnd!.month}/${_availabilityEnd!.year}'
-                                          ' at ${_availabilityEnd!.hour.toString().padLeft(2, '0')}:${_availabilityEnd!.minute.toString().padLeft(2, '0')}'
-                                        : 'No end time set (available indefinitely)',
-                                    style: TextStyle(
-                                      color: _availabilityEnd != null
-                                          ? Colors.black87
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _selectAvailabilityEnd,
-                                  child: Text(_availabilityEnd != null
-                                      ? 'Change'
-                                      : 'Set End Time'),
-                                ),
-                                if (_availabilityEnd != null)
-                                  IconButton(
-                                    onPressed: () {
-                                      setState(() => _availabilityEnd = null);
-                                    },
-                                    icon: const Icon(Icons.clear, size: 20),
-                                    tooltip: 'Remove end time',
-                                  ),
-                              ],
-                            ),
+                                      fontSize: 13,
+                                      color: _green,
+                                      fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                      // Description
-                      _buildSectionHeader('Description (Optional)'),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _descriptionController,
-                        maxLines: 3,
-                        maxLength: 200,
-                        decoration: InputDecoration(
-                          hintText:
-                              'Add details about your energy offering, location specifics, or any special requirements...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                                color: Colors.green, width: 2),
-                          ),
+                    // ── Description ─────────────────────────────────────
+                    _sectionLabel(
+                        cs, Icons.chat_bubble_outline,
+                        cs.onSurface.withValues(alpha: 0.5),
+                        'Description (Optional)'),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _descriptionController,
+                      maxLines: 3,
+                      maxLength: 200,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Tell buyers about your setup, location, or any special info…',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                              color: cs.outline.withValues(alpha: 0.5)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: _green, width: 2),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Action buttons ───────────────────────────────────
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _isSubmitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed:
+                                _isSubmitting ? null : _handleSubmit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _green,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white),
+                                  )
+                                : const Text('Create Listing',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-
-            // ── Action buttons ───────────────────────────────────────────
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white),
-                            ),
-                          )
-                        : const Text('Create Listing'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
-      ),
+  Widget _sectionLabel(
+      ColorScheme cs, IconData icon, Color iconColor, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 6),
+        Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface.withValues(alpha: 0.7))),
+      ],
     );
   }
 
-  Widget _buildTextField({
+  Widget _field({
     required TextEditingController controller,
     required String label,
+    required ColorScheme cs,
     String? prefix,
     String? suffix,
-    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
+      keyboardType:
+          const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+      ],
       validator: validator,
-      inputFormatters: keyboardType ==
-              const TextInputType.numberWithOptions(decimal: true)
-          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
-          : null,
       decoration: InputDecoration(
         labelText: label,
         prefixText: prefix,
         suffixText: suffix,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: cs.outline.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.green, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _green, width: 2),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown({
+  Widget _dropdown({
+    required ColorScheme cs,
     required String label,
     required String value,
     required List<String> items,
     required void Function(String?) onChanged,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
-          ),
+    return DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: cs.outline.withValues(alpha: 0.5)),
         ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              items: items.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              }).toList(),
-              onChanged: onChanged,
-              isExpanded: true,
-            ),
-          ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _green, width: 2),
         ),
-      ],
+      ),
+      borderRadius: BorderRadius.circular(12),
+      items: items
+          .map((item) =>
+              DropdownMenuItem(value: item, child: Text(item)))
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }

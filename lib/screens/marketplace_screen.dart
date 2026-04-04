@@ -994,33 +994,60 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Listing'),
-        content: const Text(
-            'Are you sure you want to delete your energy listing?\nThis action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(AppStrings.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              final success = await provider.deleteMyListing();
-              if (success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(AppStrings.listingDeleted),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.textOnPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
             ),
-            child: const Text(AppStrings.delete),
-          ),
+            const SizedBox(width: 12),
+            const Text('Delete Listing', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+            'Are you sure you want to delete your energy listing? This action cannot be undone.',
+            style: TextStyle(fontSize: 14, height: 1.5)),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text(AppStrings.cancel),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  final success = await provider.deleteMyListing();
+                  if (success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text(AppStrings.listingDeleted),
+                        backgroundColor: AppColors.success));
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: const Text(AppStrings.delete),
+              ),
+            ),
+          ]),
         ],
       ),
     );
@@ -1090,22 +1117,52 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Request'),
-        content: const Text(
-            'Are you sure you want to cancel this energy request?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cancel_outlined, color: Colors.orange, size: 22),
             ),
-            child: const Text('Yes, Cancel'),
-          ),
+            const SizedBox(width: 12),
+            const Text('Cancel Request', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+            'Are you sure you want to cancel this energy request?',
+            style: TextStyle(fontSize: 14, height: 1.5)),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Keep it'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: const Text('Yes, Cancel'),
+              ),
+            ),
+          ]),
         ],
       ),
     );
@@ -1150,7 +1207,20 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Navigate with...'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.navigation_rounded, color: Colors.blue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text('Navigate with', style: TextStyle(fontSize: 17)),
+        ]),
+        contentPadding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1216,31 +1286,63 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Search Distance'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.near_me, color: Colors.blue, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text('Search Distance', style: TextStyle(fontSize: 17)),
+        ]),
         content: StatefulBuilder(
           builder: (context, setState) {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${provider.maxDistance.toInt()} km'),
+                const SizedBox(height: 8),
+                Text('${provider.maxDistance.toInt()} km',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
                 Slider(
                   value: provider.maxDistance,
                   min: 1.0,
                   max: 50.0,
                   divisions: 49,
+                  label: '${provider.maxDistance.toInt()} km',
                   onChanged: (value) {
                     setState(() {});
                     provider.updateDistanceFilter(value);
                   },
                 ),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('1 km', style: TextStyle(fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                    Text('50 km', style: TextStyle(fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  ]),
               ],
             );
           },
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('Done'),
+            ),
           ),
         ],
       ),
@@ -1252,32 +1354,63 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Maximum Price'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.bolt, color: Colors.amber, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text('Maximum Price', style: TextStyle(fontSize: 17)),
+        ]),
         content: StatefulBuilder(
           builder: (context, setState) {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                    'R${provider.maxPrice.toStringAsFixed(1)} per kWh'),
+                const SizedBox(height: 8),
+                Text('R${provider.maxPrice.toStringAsFixed(1)}/kWh',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
                 Slider(
                   value: provider.maxPrice,
                   min: 0.5,
                   max: 10.0,
                   divisions: 95,
+                  label: 'R${provider.maxPrice.toStringAsFixed(1)}',
                   onChanged: (value) {
                     setState(() {});
                     provider.updatePriceFilter(value);
                   },
                 ),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('R0.50', style: TextStyle(fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                    Text('R10.00', style: TextStyle(fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
+                  ]),
               ],
             );
           },
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('Done'),
+            ),
           ),
         ],
       ),
@@ -1289,30 +1422,70 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vehicle Type'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.electric_car, color: Colors.green, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text('Vehicle Type', style: TextStyle(fontSize: 17)),
+        ]),
+        contentPadding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            'all',
-            'Electric Car',
-            'Electric Van',
-            'Electric Truck',
-            'Electric Bus',
-          ]
-              .map((type) => ListTile(
-                    title:
-                        Text(type == 'all' ? 'All Vehicles' : type),
-                    onTap: () {
-                      provider.updateVehicleTypeFilter(type);
-                      Navigator.of(context).pop();
-                    },
-                    trailing: provider.selectedVehicleType == type
-                        ? const Icon(Icons.check,
-                            color: AppColors.success)
-                        : null,
-                  ))
-              .toList(),
+            'all', 'Electric Car', 'Electric Van',
+            'Electric Truck', 'Electric Bus',
+          ].map((type) {
+            final selected = provider.selectedVehicleType == type;
+            final cs = Theme.of(context).colorScheme;
+            return ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              tileColor: selected ? cs.primary.withValues(alpha: 0.08) : null,
+              leading: Icon(
+                type == 'all' ? Icons.all_inclusive :
+                type == 'Electric Car' ? Icons.electric_car :
+                type == 'Electric Van' ? Icons.airport_shuttle :
+                type == 'Electric Truck' ? Icons.local_shipping :
+                Icons.directions_bus,
+                color: selected ? cs.primary : cs.onSurface.withValues(alpha: 0.5),
+                size: 20,
+              ),
+              title: Text(type == 'all' ? 'All Vehicles' : type,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                    color: selected ? cs.primary : cs.onSurface,
+                    fontSize: 14,
+                  )),
+              trailing: selected
+                  ? Icon(Icons.check_circle_rounded, color: cs.primary, size: 20)
+                  : null,
+              onTap: () {
+                provider.updateVehicleTypeFilter(type);
+                Navigator.of(context).pop();
+              },
+            );
+          }).toList(),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Cancel'),
+            ),
+          ),
+        ],
       ),
     );
   }

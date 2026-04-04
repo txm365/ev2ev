@@ -143,7 +143,12 @@ class ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
-              // TODO: edit profile
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Profile editing coming soon'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
           ),
           IconButton(
