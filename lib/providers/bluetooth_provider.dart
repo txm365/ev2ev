@@ -25,6 +25,7 @@ class BluetoothProvider with ChangeNotifier {
   StreamSubscription<List<ScanResult>>? _scanSubscription;
   String? _errorMessage;
   bool _isConnected = false;
+  bool _isConnecting = false; // true while connection is being established
   DateTime? _lastDisconnectedTime;
   bool _userRequestedDisconnect = false;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
@@ -51,6 +52,7 @@ class BluetoothProvider with ChangeNotifier {
   List<BluetoothDevice> get devices => _devices;
   String? get errorMessage => _errorMessage;
   bool get isConnected => _isConnected;
+  bool get isConnecting => _isConnecting;
   bool get isDataStreaming => _isDataStreaming;
   DateTime? get lastDisconnectedTime => _lastDisconnectedTime;
   bool get autoConnectionEnabled => _autoConnectionEnabled;
@@ -218,6 +220,7 @@ class BluetoothProvider with ChangeNotifier {
       _errorMessage = null;
       _userRequestedDisconnect = false;
       _reconnectionAttempts = 0;
+      _isConnecting = true;
       _autoReconnectTimer?.cancel();
 
       _connectedDevice = device;
@@ -229,6 +232,7 @@ class BluetoothProvider with ChangeNotifier {
       debugPrint('Successfully connected to ${device.platformName}');
     } catch (e) {
       _errorMessage = 'Connection failed: ${e.toString()}';
+      _isConnecting = false;
       _cleanupConnection();
       notifyListeners();
       rethrow;
@@ -236,6 +240,12 @@ class BluetoothProvider with ChangeNotifier {
   }
 
   Future<void> _setupConnection(BluetoothDevice device) async {
+    // Bail if this device is already fully connected
+    if (_isConnected && _connectedDevice?.remoteId == device.remoteId) {
+      debugPrint('⚠️ _setupConnection: already connected to ${device.platformName}, skipping');
+      _isConnecting = false;
+      return;
+    }
     _connectionSubscription?.cancel();
     _connectionSubscription = device.connectionState.listen((state) {
       _isConnected = state == BluetoothConnectionState.connected;
@@ -304,6 +314,7 @@ class BluetoothProvider with ChangeNotifier {
     }
 
     _isConnected = true;
+    _isConnecting = false;
     _errorMessage = null;
     notifyListeners();
   }
@@ -530,6 +541,7 @@ class BluetoothProvider with ChangeNotifier {
     _connectedDevice = null;
     _services.clear();
     _isConnected = false;
+    _isConnecting = false;
     _isDataStreaming = false;
     _receivedData = '';
 
@@ -549,7 +561,10 @@ class BluetoothProvider with ChangeNotifier {
   void _scheduleAutoReconnect() {
     if (!_autoConnectionEnabled ||
         _userRequestedDisconnect ||
-        _isConnected) return;
+        _isConnected ||
+        _isConnecting) {  // don't schedule while already connecting
+      return;
+    }
 
     _autoReconnectTimer?.cancel();
     _autoReconnectTimer = Timer(_reconnectInterval, () {
@@ -565,7 +580,10 @@ class BluetoothProvider with ChangeNotifier {
   Future<void> attemptAutoReconnect() async {
     if (_userRequestedDisconnect ||
         _isConnected ||
-        !_autoConnectionEnabled) return;
+        _isConnecting ||
+        !_autoConnectionEnabled) {
+      return;
+    }
 
     if (_lastConnectedDevice == null) {
       await startAutomaticScan();

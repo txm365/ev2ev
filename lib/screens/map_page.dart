@@ -1,5 +1,6 @@
 // lib/screens/map_page.dart
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -10,8 +11,10 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../providers/map_provider.dart';
-import '../providers/marketplace_provider.dart' as mp;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/energy_listing.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show mainScreenKey;
 
 class MapPage extends StatefulWidget {
@@ -25,30 +28,165 @@ class MapPageState extends State<MapPage> {
   final PolylinePoints _polylinePoints = PolylinePoints();
   late final MapController _mapController;
   late final MapProvider _mapProvider;
-  late final mp.MarketplaceProvider _marketplaceProvider;
-
   bool _isRouting = false;
   bool _mapReady = false;
   Position? _currentPosition;
-  EnergyListing? _activeRouteListing; // seller the current route was plotted to
+  EnergyListing? _activeRouteListing;
+  double _zoomLevel = 10.5;
+  double? _externalRouteDestLat;
+  double? _externalRouteDestLng;
+  bool _isExternalRoute = false;
+
+  // ── Map-local seller state (independent of marketplace filters) ────────────
+  List<EnergyListing> _mapSellers = [];
+  bool _isLoadingSellers = false;
+  double _lastFetchedRadiusKm = 0;
+  Timer? _zoomDebounce;
+
+  // ── Vehicle type filter ───────────────────────────────────────────────────
+  String _selectedVehicleType = 'All';
+  static const List<String> _vehicleTypes = [
+    'All', 'Electric Car', 'Electric Van', 'Electric Truck',
+    'Electric Bus', 'Electric Motorcycle', 'Charging Station',
+  ];
+
+  // ── Last known position (persisted) ─────────────────────────────────────
+  static const _prefLat = 'map_last_lat';
+  static const _prefLng = 'map_last_lng';
+  LatLng _lastSavedPosition = const LatLng(-26.2041, 28.0473); // Johannesburg fallback
+
+  /// Converts zoom level → visible radius in km.
+  /// zoom 5 ≈ 1000 km  |  zoom 7 ≈ 250 km  |  zoom 10.5 ≈ 50 km  |  zoom 14 ≈ 5 km
+  double _zoomToRadiusKm(double zoom) {
+    // Each zoom step halves the visible area (exponential scale)
+    return (1000.0 * math.pow(2.0, 5.0 - zoom)).clamp(1.0, 1000.0);
+  }
+
+  /// Human-readable radius label shown on the zoom slider
+  String _radiusLabel(double zoom) {
+    final km = _zoomToRadiusKm(zoom);
+    if (km >= 1000) return '1000 km';
+    if (km >= 100) return '${km.toStringAsFixed(0)} km';
+    if (km >= 10) return '${km.toStringAsFixed(0)} km';
+    return '${km.toStringAsFixed(1)} km';
+  }
+
+  /// Debounce zoom changes so we don't hit the DB on every pixel of slider drag
+  void _onZoomChanged(double newZoom) {
+    _zoomDebounce?.cancel();
+    _zoomDebounce = Timer(const Duration(milliseconds: 600), () {
+      final radiusKm = _zoomToRadiusKm(newZoom);
+      // Only refetch if radius changed by more than 20%
+      if ((_lastFetchedRadiusKm - radiusKm).abs() > _lastFetchedRadiusKm * 0.2) {
+        _fetchSellersForRadius(radiusKm);
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
     _mapProvider = context.read<MapProvider>();
-    _marketplaceProvider = context.read<mp.MarketplaceProvider>();
+    _loadLastPosition(); // restore saved position before map opens
     _initializePosition();
-    // Load sellers when map opens — uses cache if data is fresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _marketplaceProvider.getNearbyListings(radiusKm: 100);
+      _fetchSellersForRadius(50);
     });
+  }
+
+  Future<void> _loadLastPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble(_prefLat);
+    final lng = prefs.getDouble(_prefLng);
+    if (lat != null && lng != null && mounted) {
+      setState(() => _lastSavedPosition = LatLng(lat, lng));
+    }
+  }
+
+  Future<void> _saveLastPosition(LatLng pos) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefLat, pos.latitude);
+    await prefs.setDouble(_prefLng, pos.longitude);
   }
 
   @override
   void dispose() {
+    _zoomDebounce?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MAP-LOCAL SELLER FETCH (bypasses marketplace filters)
+  // ─────────────────────────────────────────────────────────────────────────
+  Future<void> _fetchSellersForRadius(double radiusKm) async {
+    if (_isLoadingSellers) return;
+    // Normalize: _currentPosition is Position (geolocator), provider uses LatLng
+    final LatLng? pos = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : _mapProvider.currentPosition;
+    if (pos == null) {
+      // Position not ready yet — will retry after _initializePosition completes
+      return;
+    }
+
+    if (mounted) setState(() => _isLoadingSellers = true);
+
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id ?? '';
+
+      // Try the RPC first (same one marketplace uses)
+      List<dynamic>? rows;
+      try {
+        rows = await client.rpc('get_nearby_listings', params: {
+          'user_lat': pos.latitude,
+          'user_lng': pos.longitude,
+          'radius_km': radiusKm,
+          'current_user_id': userId,
+        }) as List<dynamic>;
+      } catch (_) {
+        // RPC failed — plain fallback
+        rows = await client
+            .from('energy_listings')
+            .select('*')
+            .eq('status', 'available')
+            .neq('seller_id', userId);
+      }
+
+      final List<dynamic> rowList = rows;
+      final listings = rowList.map<EnergyListing>((row) {
+        // Equirectangular distance — accurate enough for <200 km
+        if (row['distance'] == null) {
+          final sLat = (row['location_lat'] as num).toDouble();
+          final sLng = (row['location_lng'] as num).toDouble();
+          const kmPerDeg = 111.32;
+          final dlat = (sLat - pos.latitude) * kmPerDeg;
+          // cos(lat) approximation valid for -90..90
+          final cosLat = 1.0 - (pos.latitude.abs() / 90.0) * 0.40;
+          final dlng = (sLng - pos.longitude) * kmPerDeg * cosLat;
+          final dist2 = dlat * dlat + dlng * dlng;
+          row['distance'] = dist2 <= 0 ? 0.0 : (dlat.abs() + dlng.abs()) / 1.414;
+        }
+        row['seller_name'] = row['seller_name'] ?? 'Energy Provider';
+        return EnergyListing.fromJson(row);
+      }).where((l) {
+        final d = l.distance;
+        return d == null || d <= radiusKm;
+      }).toList();
+
+      listings.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
+
+      _lastFetchedRadiusKm = radiusKm;
+      debugPrint('🗺️ Map fetched ${listings.length} sellers within ${radiusKm.toStringAsFixed(0)} km');
+
+      if (mounted) setState(() => _mapSellers = listings);
+    } catch (e) {
+      debugPrint('🗺️ Map seller fetch error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingSellers = false);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -74,12 +212,15 @@ class MapPageState extends State<MapPage> {
       );
 
       if (_currentPosition != null && mounted) {
-        _mapProvider.updatePosition(
-          LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        );
+        final pos = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+        _mapProvider.updatePosition(pos);
+        _saveLastPosition(pos);          // persist for next session
+        setState(() => _lastSavedPosition = pos);
         if (_mapReady) {
-          _mapController.move(_mapProvider.currentPosition!, 9.5);
+          _mapController.move(pos, _zoomLevel);
         }
+        // Now that we have position, do initial seller fetch
+        _fetchSellersForRadius(50);
       }
     } catch (e) {
       _showLocationError('Error getting location: $e');
@@ -143,6 +284,43 @@ class MapPageState extends State<MapPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Routing failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRouting = false);
+    }
+  }
+
+  /// Called by marketplace "View on Map" — routes to arbitrary coordinates.
+  Future<void> routeToCoordinates(double lat, double lng) async {
+    final currentPos = _mapProvider.currentPosition;
+    if (currentPos == null) return;
+    final dest = LatLng(lat, lng);
+    setState(() => _isRouting = true);
+    try {
+      final routeData = await _getOSRMRoute(currentPos, dest);
+      final route = routeData['routes'][0];
+      final points = _polylinePoints.decodePolyline(route['geometry']);
+      if (mounted) {
+        _mapProvider.setRoute(
+          dest,
+          points.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+          route['distance'] / 1000,
+        );
+        _mapController.move(dest, 13);
+        // Store destination so Navigate button knows where to go
+        setState(() {
+          _zoomLevel = 13;
+          _externalRouteDestLat = lat;
+          _externalRouteDestLng = lng;
+          _isExternalRoute = true;
+          _activeRouteListing = null; // no seller card needed
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Routing failed: $e')),
         );
       }
     } finally {
@@ -483,49 +661,6 @@ class MapPageState extends State<MapPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // LEGEND
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildLegend(List<EnergyListing> sellers) {
-    final types = sellers.map((s) => s.vehicleType).toSet().toList();
-    if (types.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 4,
-        children: types.map((t) {
-          final color = _vehicleColor(t);
-          final icon = _vehicleIcon(t);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 14),
-              const SizedBox(width: 4),
-              Text(
-                t,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurface),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // MY LOCATION MARKER — pulsing blue dot
@@ -566,6 +701,71 @@ class MapPageState extends State<MapPage> {
   // ─────────────────────────────────────────────────────────────────────────
   // EV efficiency assumption: 6 km/kWh (adjustable)
   static const double _evEfficiencyKmPerKwh = 6.0;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // NAVIGATOR APP LAUNCHER
+  // ─────────────────────────────────────────────────────────────────────────
+  void _launchNavigator(double lat, double lng, String label) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Navigate with...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.navigation, color: Colors.blue),
+              title: const Text('Google Maps'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse(
+                    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_car, color: Colors.teal),
+              title: const Text('Waze'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  // Waze not installed — open Play Store
+                  final fallback = Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+                  if (await canLaunchUrl(fallback)) {
+                    await launchUrl(fallback,
+                        mode: LaunchMode.externalApplication);
+                  }
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.map, color: Colors.orange),
+              title: const Text('Default Maps App'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse('geo:$lat,$lng?q=$lat,$lng($label)');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildRouteInfo(MapProvider provider) {
     final distance = provider.selectedDistance!;
@@ -657,7 +857,12 @@ class MapPageState extends State<MapPage> {
                   IconButton(
                     onPressed: () {
                       provider.clearRoute();
-                      setState(() => _activeRouteListing = null);
+                      setState(() {
+                        _activeRouteListing = null;
+                        _isExternalRoute = false;
+                        _externalRouteDestLat = null;
+                        _externalRouteDestLng = null;
+                      });
                     },
                     icon: const Icon(Icons.close, size: 18),
                     tooltip: 'Clear route',
@@ -669,7 +874,35 @@ class MapPageState extends State<MapPage> {
                 ],
               ),
 
-              // ── Seller context (if route was to a seller) ─────────────
+              // ── External route Navigate button (from marketplace) ──────
+              if (_isExternalRoute &&
+                  _externalRouteDestLat != null &&
+                  _externalRouteDestLng != null) ...[
+                const SizedBox(height: 10),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchNavigator(
+                      _externalRouteDestLat!,
+                      _externalRouteDestLng!,
+                      'Energy Seller',
+                    ),
+                    icon: const Icon(Icons.navigation, size: 18),
+                    label: const Text('Navigate'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                    ),
+                  ),
+                ),
+              ],
+
+              // ── Seller context (if route was to a seller marker) ──────────
               if (seller != null) ...[
                 const SizedBox(height: 10),
                 const Divider(height: 1),
@@ -764,36 +997,53 @@ class MapPageState extends State<MapPage> {
       appBar: AppBar(
         title: const Text('Map & Navigation'),
         actions: [
-          // Refresh sellers — bypasses cache
-          Consumer<mp.MarketplaceProvider>(
-            builder: (context, marketplaceProvider, _) {
-              if (marketplaceProvider.isLoading) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                );
-              }
-              return IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh sellers',
-                onPressed: () =>
-                    marketplaceProvider.refreshAll(),
-              );
-            },
-          ),
+          // Refresh sellers directly from DB
+          if (_isLoadingSellers)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh sellers',
+              onPressed: () => _fetchSellersForRadius(
+                  _zoomToRadiusKm(_zoomLevel)),
+            ),
           IconButton(
             icon: const Icon(Icons.my_location),
             onPressed: _initializePosition,
           ),
         ],
       ),
-      body: Consumer2<MapProvider, mp.MarketplaceProvider>(
-        builder: (context, mapProvider, marketplaceProvider, _) {
-          final sellers = marketplaceProvider.nearbyListings;
+      body: Consumer<MapProvider>(
+        builder: (context, mapProvider, _) {
+          // Apply vehicle type filter
+          final sellers = _selectedVehicleType == 'All'
+              ? _mapSellers
+              : _mapSellers.where((s) =>
+                  s.vehicleType.toLowerCase()
+                      .contains(_selectedVehicleType.toLowerCase())).toList();
+
+          // Auto-plot route when marketplace triggers "View on Map"
+          if (mapProvider.isNavigating &&
+              mapProvider.selectedPoint != null &&
+              mapProvider.routePoints.isEmpty &&
+              !_isRouting &&
+              _mapReady) {
+            final dest = mapProvider.selectedPoint!;
+            final isAccepted = mapProvider.isAcceptedRoute;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                if (isAccepted) setState(() => _isExternalRoute = true);
+                routeToCoordinates(dest.latitude, dest.longitude);
+              }
+            });
+          }
 
           return Stack(
             children: [
@@ -802,14 +1052,14 @@ class MapPageState extends State<MapPage> {
                 mapController: _mapController,
                 options: MapOptions(
                   initialCenter: mapProvider.currentPosition ??
-                      const LatLng(-26.2041, 28.0473),
-                  initialZoom: 9.5, // zoom level to show ~100 km radius
+                      _lastSavedPosition,
+                  initialZoom: 10.5, // zoom level to show ~50 km radius
                   onTap: _handleMapTap,
                   onMapReady: () {
                     setState(() => _mapReady = true);
                     if (mapProvider.currentPosition != null) {
                       _mapController.move(
-                          mapProvider.currentPosition!, 9.5);
+                          mapProvider.currentPosition!, 10.5);
                     }
                   },
                 ),
@@ -878,51 +1128,12 @@ class MapPageState extends State<MapPage> {
                   child: const Center(child: CircularProgressIndicator()),
                 ),
 
-              // ── Seller count badge (top left) ───────────────────────────
-              if (sellers.isNotEmpty)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surface
-                          .withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.electric_bolt,
-                            size: 16,
-                            color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${sellers.length} seller${sellers.length == 1 ? '' : 's'} nearby',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              // seller count badge removed
 
               // ── No sellers hint ─────────────────────────────────────────
-              if (sellers.isEmpty && !marketplaceProvider.isLoading)
+              if (sellers.isEmpty && !_isLoadingSellers)
                 Positioned(
-                  top: 12,
+                  top: 62,
                   left: 12,
                   right: 12,
                   child: Container(
@@ -959,18 +1170,179 @@ class MapPageState extends State<MapPage> {
                   ),
                 ),
 
-              // ── Bottom: legend + route info (raised above navbar) ────────
+              // ── Bottom: route info card (raised above navbar) ─────────
               Positioned(
-                bottom: 72, // clears the phone's bottom navigation bar
+                bottom: 72,
                 left: 0,
                 right: 0,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (sellers.isNotEmpty) _buildLegend(sellers),
                     if (mapProvider.selectedDistance != null)
                       _buildRouteInfo(mapProvider),
                   ],
+                ),
+              ),
+
+              // ── Right side: vertical zoom slider with radius label ──────
+              Positioned(
+                right: 12,
+                top: 0,
+                bottom: 80,
+                child: Center(
+                  child: Container(
+                    width: 52,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Radius label
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            _radiusLabel(_zoomLevel),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Zoom in
+                        IconButton(
+                          icon: const Icon(Icons.add, size: 18),
+                          onPressed: () {
+                            final nz = (_zoomLevel + 1).clamp(5.0, 18.0);
+                            setState(() => _zoomLevel = nz);
+                            _mapController.move(
+                              mapProvider.currentPosition ?? _lastSavedPosition,
+                              nz,
+                            );
+                            _onZoomChanged(nz);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+                        ),
+                        // Vertical slider
+                        SizedBox(
+                          height: 150,
+                          child: RotatedBox(
+                            quarterTurns: 3,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 3,
+                                thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 7),
+                                overlayShape: const RoundSliderOverlayShape(
+                                    overlayRadius: 12),
+                                activeTrackColor:
+                                    Theme.of(context).colorScheme.primary,
+                                inactiveTrackColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.2),
+                                thumbColor:
+                                    Theme.of(context).colorScheme.primary,
+                              ),
+                              child: Slider(
+                                value: _zoomLevel,
+                                min: 5.0,
+                                max: 18.0,
+                                onChanged: (val) {
+                                  setState(() => _zoomLevel = val);
+                                  _mapController.move(
+                                    mapProvider.currentPosition ?? _lastSavedPosition,
+                                    val,
+                                  );
+                                  _onZoomChanged(val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Zoom out
+                        IconButton(
+                          icon: const Icon(Icons.remove, size: 18),
+                          onPressed: () {
+                            final nz = (_zoomLevel - 1).clamp(5.0, 18.0);
+                            setState(() => _zoomLevel = nz);
+                            _mapController.move(
+                              mapProvider.currentPosition ?? _lastSavedPosition,
+                              nz,
+                            );
+                            _onZoomChanged(nz);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Top: vehicle type filter chips ─────────────────────────────
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 72, // leave room for zoom slider
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _vehicleTypes.map((type) {
+                      final selected = _selectedVehicleType == type;
+                      final cs = Theme.of(context).colorScheme;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          label: Text(
+                            type == 'All' ? '⚡ All' :
+                            type == 'Charging Station' ? '🔌 Station' :
+                            type == 'Electric Car' ? '🚗 Car' :
+                            type == 'Electric Bus' ? '🚌 Bus' :
+                            type == 'Electric Truck' ? '🚛 Truck' :
+                            type == 'Electric Van' ? '🚐 Van' :
+                            type == 'Electric Motorcycle' ? '🛵 Moto' : type,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: selected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: selected
+                                  ? cs.onPrimary
+                                  : cs.onSurface,
+                            ),
+                          ),
+                          selected: selected,
+                          onSelected: (_) =>
+                              setState(() => _selectedVehicleType = type),
+                          backgroundColor:
+                              cs.surface.withValues(alpha: 0.92),
+                          selectedColor: cs.primary,
+                          checkmarkColor: cs.onPrimary,
+                          elevation: 2,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 0),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ],

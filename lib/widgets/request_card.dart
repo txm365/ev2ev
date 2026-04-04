@@ -9,7 +9,8 @@ class RequestCard extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onCancel;
-  final VoidCallback? onViewOnMap;
+  final VoidCallback? onShowOnMap;
+  final VoidCallback? onNavigate;
 
   const RequestCard({
     super.key,
@@ -18,422 +19,360 @@ class RequestCard extends StatelessWidget {
     this.onAccept,
     this.onReject,
     this.onCancel,
-    this.onViewOnMap,
+    this.onShowOnMap,
+    this.onNavigate,
   });
+
+  Color _statusColor() {
+    switch (request.status) {
+      case 'accepted': return const Color(0xFF2E7D32);
+      case 'rejected': return const Color(0xFFC62828);
+      case 'cancelled': return Colors.grey;
+      default: return const Color(0xFFE65100); // pending
+    }
+  }
+
+  IconData _statusIcon() {
+    switch (request.status) {
+      case 'accepted': return Icons.check_circle_rounded;
+      case 'rejected': return Icons.cancel_rounded;
+      case 'cancelled': return Icons.block_rounded;
+      default: return Icons.hourglass_top_rounded;
+    }
+  }
+
+  String _statusLabel() => request.status[0].toUpperCase() + request.status.substring(1);
+
+  String _formatTimestamp(DateTime t) {
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d, yyyy').format(t);
+  }
+
+  bool _hasLocation() =>
+      request.sellerLocationLat != null && request.sellerLocationLng != null;
 
   @override
   Widget build(BuildContext context) {
-    final isAccepted = request.status.toLowerCase() == 'accepted';
-    
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: _getStatusColor(),
-                  child: Icon(
-                    _getStatusIcon(),
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Show both names when accepted
-                      if (isAccepted && request.buyerName != null && request.sellerName != null) ...[
-                        Row(
-                          children: [
-                            const Icon(Icons.person, size: 14, color: Colors.blue),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Buyer: ',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              request.buyerName!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Icon(Icons.store, size: 14, color: Colors.green),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Seller: ',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              request.sellerName!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ] else ...[
-                        // Show single name for pending/rejected
-                        Text(
-                          isReceived 
-                              ? (request.buyerName ?? 'Buyer')
-                              : (request.sellerName ?? 'Seller'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          isReceived 
-                              ? 'Wants to buy energy'
-                              : 'Your energy request',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                _buildStatusChip(),
-              ],
-            ),
-            const SizedBox(height: 12),
+    final cs = Theme.of(context).colorScheme;
+    final sc = _statusColor();
+    final total = request.offeredPricePerKwh != null
+        ? request.offeredPricePerKwh! * request.requestedEnergy
+        : null;
 
-            // Show trade details section for accepted requests
-            if (isAccepted) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                ),
-                child: Row(
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      elevation: 2,
+      shadowColor: sc.withValues(alpha: 0.15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Status accent bar ──────────────────────────────────────────────
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [sc, sc.withValues(alpha: 0.4)],
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header ──────────────────────────────────────────────────
+                Row(
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: sc.withValues(alpha: 0.12),
+                      child: Icon(_statusIcon(), color: sc, size: 20),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Trade Confirmed',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                              fontSize: 14,
-                            ),
-                          ),
                           Text(
-                            'Ready for energy exchange',
+                            isReceived
+                                ? (request.buyerName ?? 'Buyer')
+                                : (request.sellerName ?? 'Seller'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isReceived
+                                ? 'Wants to buy energy from you'
+                                : 'Your energy request',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 12,
-                            ),
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.55)),
                           ),
                         ],
                       ),
                     ),
+                    // Status chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: sc.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: sc.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        _statusLabel(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: sc,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-            ],
 
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
+                const SizedBox(height: 14),
+
+                // ── Stats row ─────────────────────────────────────────────
+                Container(
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        _statTile(context,
+                            icon: Icons.battery_charging_full,
+                            iconColor: Colors.green,
+                            value:
+                                '${request.requestedEnergy.toStringAsFixed(1)} kWh',
+                            label: 'Requested'),
+                        _vDivider(cs),
+                        _statTile(context,
+                            icon: Icons.bolt,
+                            iconColor: Colors.amber[700]!,
+                            value: request.offeredPricePerKwh != null
+                                ? 'R${request.offeredPricePerKwh!.toStringAsFixed(2)}'
+                                : 'Listed',
+                            label: 'per kWh'),
+                        _vDivider(cs),
+                        _statTile(context,
+                            icon: Icons.receipt_long,
+                            iconColor: cs.primary,
+                            value: total != null
+                                ? 'R${total.toStringAsFixed(2)}'
+                                : '—',
+                            label: 'Total'),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Message ───────────────────────────────────────────────
+                if (request.message?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                            size: 14,
+                            color: cs.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            request.message!,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.7)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ── Timestamp ─────────────────────────────────────────────
+                const SizedBox(height: 8),
+                Text(
+                  'Requested ${_formatTimestamp(request.createdAt)}',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.4)),
+                ),
+
+                // ── Accept / Reject (received pending) ────────────────────
+                if (isReceived && request.status == 'pending') ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      if (onReject != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: onReject,
+                            icon: const Icon(Icons.close, size: 16),
+                            label: const Text('Reject'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      if (onReject != null && onAccept != null)
+                        const SizedBox(width: 10),
+                      if (onAccept != null)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: onAccept,
+                            icon: const Icon(Icons.check, size: 16),
+                            label: const Text('Accept'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+
+                // ── Cancel (sent pending) ─────────────────────────────────
+                if (!isReceived &&
+                    request.status == 'pending' &&
+                    onCancel != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onCancel,
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Cancel Request'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // ── View on Map + Navigate (accepted with location) ───────
+                if (request.status == 'accepted' &&
+                    _hasLocation() &&
+                    onShowOnMap != null) ...[
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
-                        child: _buildDetailItem(
-                          'Energy Requested',
-                          '${request.requestedEnergy.toStringAsFixed(1)} kWh',
-                          Icons.battery_charging_full,
+                        child: OutlinedButton.icon(
+                          onPressed: onShowOnMap,
+                          icon: const Icon(Icons.map_outlined, size: 16),
+                          label: const Text('View on Map'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: cs.primary,
+                            side: BorderSide(
+                                color: cs.primary.withValues(alpha: 0.6)),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: _buildDetailItem(
-                          'Price Offered',
-                          request.offeredPricePerKwh != null
-                              ? 'R${request.offeredPricePerKwh!.toStringAsFixed(2)}/kWh'
-                              : 'Listed price',
-                          Icons.attach_money,
+                        child: ElevatedButton.icon(
+                          onPressed: onNavigate,
+                          icon: const Icon(Icons.navigation_rounded,
+                              size: 16),
+                          label: const Text('Navigate'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  if (request.offeredPricePerKwh != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Total Estimated Cost:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'R${(request.requestedEnergy * request.offeredPricePerKwh!).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
-              ),
-            ),
-
-            if (request.message?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.message, size: 14, color: Colors.blue),
-                        SizedBox(width: 4),
-                        Text(
-                          'Message:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      request.message!,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  DateFormat('MMM d, yyyy h:mm a').format(request.createdAt),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
               ],
             ),
-
-            const SizedBox(height: 12),
-            _buildActionButtons(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatusChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: _getStatusColor().withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _getStatusColor(), width: 1.5),
-      ),
-      child: Text(
-        request.status.toUpperCase(),
-        style: TextStyle(
-          color: _getStatusColor(),
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-
-  Color _getStatusColor() {
-    switch (request.status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'accepted':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'completed':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon() {
-    switch (request.status.toLowerCase()) {
-      case 'pending':
-        return Icons.hourglass_empty;
-      case 'accepted':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'completed':
-        return Icons.done_all;
-      default:
-        return Icons.info;
-    }
-  }
-
-  Widget _buildDetailItem(String label, String value, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _statTile(BuildContext context,
+      {required IconData icon,
+      required Color iconColor,
+      required String value,
+      required String label}) {
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: Colors.grey[600]),
-            const SizedBox(width: 4),
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 1),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
+                  fontSize: 10,
+                  color: cs.onSurface.withValues(alpha: 0.45)),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildActionButtons() {
-    if (isReceived) {
-      // Seller view - showing actions for received requests
-      if (request.status == 'pending') {
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onReject,
-                icon: const Icon(Icons.close, size: 18),
-                label: const Text('Reject'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: onAccept,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Accept'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      } else if (request.status == 'accepted') {
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onViewOnMap,
-                icon: const Icon(Icons.map, size: 18),
-                label: const Text('View on Map'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                  side: const BorderSide(color: Colors.blue),
-                ),
-              ),
-            ),
-          ],
-        );
-      }
-    } else {
-      // Buyer view - showing actions for sent requests
-      if (request.status == 'pending') {
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onCancel,
-                icon: const Icon(Icons.cancel, size: 18),
-                label: const Text('Cancel Request'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                ),
-              ),
-            ),
-          ],
-        );
-      } else if (request.status == 'accepted') {
-        // Show View on Map button for buyer when request is accepted
-        return Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: onViewOnMap,
-                icon: const Icon(Icons.map, size: 18),
-                label: const Text('View on Map'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      }
-    }
-
-    return const SizedBox.shrink();
-  }
+  Widget _vDivider(ColorScheme cs) => Container(
+        width: 1,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        color: cs.onSurface.withValues(alpha: 0.08),
+      );
 }

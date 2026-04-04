@@ -478,27 +478,29 @@ class DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 12),
 
-            SizedBox(
-              height: 120,
-              child: GridView.count(
-                crossAxisCount: 2,
-                childAspectRatio: 2.5,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildMetricTile('Voltage',
-                      '${data['v']?.toStringAsFixed(1) ?? '0.0'} V',
-                      Icons.bolt),
-                  _buildMetricTile('Current',
-                      '${data['I']?.toStringAsFixed(1) ?? '0.0'} A',
-                      Icons.electric_bolt),
-                  _buildMetricTile('Power',
-                      '${data['P']?.toStringAsFixed(1) ?? '0.0'} W',
-                      Icons.power),
-                  _buildMetricTile('Temperature',
-                      '${data['T']?.toStringAsFixed(1) ?? '0.0'}°C',
-                      Icons.thermostat),
-                ],
-              ),
+            Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildMetricTile('Voltage',
+                        '${data['v']?.toStringAsFixed(1) ?? '0.0'} V',
+                        Icons.bolt)),
+                    Expanded(child: _buildMetricTile('Current',
+                        '${data['I']?.toStringAsFixed(1) ?? '0.0'} A',
+                        Icons.electric_bolt)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(child: _buildMetricTile('Power',
+                        '${data['P']?.toStringAsFixed(1) ?? '0.0'} W',
+                        Icons.power)),
+                    Expanded(child: _buildMetricTile('Temperature',
+                        '${data['T']?.toStringAsFixed(1) ?? '0.0'}°C',
+                        Icons.thermostat)),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -521,9 +523,9 @@ class DashboardPageState extends State<DashboardPage> {
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: SizedBox(
-          height: 200,
+          height: 140,
           child: Row(
             children: [
               Expanded(
@@ -549,11 +551,11 @@ class DashboardPageState extends State<DashboardPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.thermostat, size: 100, color: color),
-        const SizedBox(height: 8),
+        Icon(Icons.thermostat, size: 56, color: color),
+        const SizedBox(height: 4),
         Text('${temperature.toStringAsFixed(1)}°C',
             style: TextStyle(
-                fontSize: 32,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: color)),
         Text('Temperature',
@@ -562,7 +564,7 @@ class DashboardPageState extends State<DashboardPage> {
                     .colorScheme
                     .onSurface
                     .withValues(alpha: 0.6),
-                fontSize: 16)),
+                fontSize: 11)),
       ],
     );
   }
@@ -574,21 +576,21 @@ class DashboardPageState extends State<DashboardPage> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildBatteryIndicator(level, color, isCharging),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text('${level.toStringAsFixed(1)}%',
             style: TextStyle(
-                fontSize: 32,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: color)),
         Text(isCharging ? 'CHARGING' : 'DISCHARGING',
             style: TextStyle(
-                fontSize: 20,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: color)),
         Text('Battery',
             style: TextStyle(
                 color: cs.onSurface.withValues(alpha: 0.6),
-                fontSize: 16)),
+                fontSize: 10)),
       ],
     );
   }
@@ -601,16 +603,16 @@ class DashboardPageState extends State<DashboardPage> {
       alignment: Alignment.center,
       children: [
         Container(
-          width: 40,
-          height: 100,
+          width: 28,
+          height: 60,
           decoration: BoxDecoration(
             border: Border.all(color: outlineColor, width: 2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              height: level / 100 * 96,
+              height: level / 100 * 56,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: const BorderRadius.vertical(
@@ -620,13 +622,13 @@ class DashboardPageState extends State<DashboardPage> {
           ),
         ),
         if (isCharging)
-          const Icon(Icons.bolt, color: Colors.white, size: 30),
+          const Icon(Icons.bolt, color: Colors.white, size: 18),
         Positioned(
-          right: -10,
-          top: 25,
+          right: -8,
+          top: 16,
           child: Container(
-            width: 8,
-            height: 20,
+            width: 6,
+            height: 14,
             decoration: BoxDecoration(
               color: outlineColor,
               borderRadius: BorderRadius.circular(2),
@@ -641,13 +643,15 @@ class DashboardPageState extends State<DashboardPage> {
       String title, String value, IconData icon) {
     final cs = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(icon, color: cs.primary, size: 28),
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+      leading: Icon(icon, color: cs.primary, size: 22),
       title: Text(value,
           style: const TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold)),
+              fontSize: 15, fontWeight: FontWeight.bold)),
       subtitle: Text(title,
           style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: cs.onSurface.withValues(alpha: 0.6))),
     );
   }

@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import '../providers/marketplace_provider.dart';
 import '../providers/map_provider.dart';
 import '../widgets/create_listing_dialog.dart';
@@ -13,7 +12,8 @@ import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../models/energy_listing.dart';
 import '../models/energy_request.dart';
-import './main_screen.dart';
+import '../main.dart' show mainScreenKey;
+import 'package:url_launcher/url_launcher.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -212,12 +212,12 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
             child: provider.nearbyListings.isEmpty
                 ? _buildEmptyBuyerView(provider)
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     itemCount: provider.nearbyListings.length,
                     itemBuilder: (context, index) {
                       final listing = provider.nearbyListings[index];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: EdgeInsets.zero,
                         child: ListingCard(
                           listing: listing,
                           onTap: () => _showEnergyRequestDialog(
@@ -313,52 +313,203 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
 
   Widget _buildActiveListingView(MarketplaceProvider provider) {
     final listing = provider.myActiveListing!;
+    final cs = Theme.of(context).colorScheme;
+    final isAvailable = listing.status == 'available';
+    final statusColor = isAvailable ? const Color(0xFF2E7D32) : const Color(0xFFE65100);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Status Header — keeps green/orange intentionally
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: listing.status == 'available'
-                  ? AppColors.energyAvailable
-                  : AppColors.energyPaused,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
+
+          // ── My Listing card ────────────────────────────────────────────────
+          Card(
+            elevation: 2,
+            shadowColor: statusColor.withValues(alpha: 0.2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  listing.status == 'available'
-                      ? Icons.check_circle
-                      : Icons.pause_circle,
-                  color: Colors.white,
-                  size: 32,
+                // Accent bar
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [statusColor, statusColor.withValues(alpha: 0.4)],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        listing.status == 'available'
-                            ? 'Listing Active'
-                            : 'Listing Paused',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      // Header
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: statusColor.withValues(alpha: 0.12),
+                            child: Icon(
+                              isAvailable ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                              color: statusColor,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isAvailable ? 'Listing Active' : 'Listing Paused',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  isAvailable
+                                      ? 'Your energy is visible to buyers'
+                                      : 'Hidden from buyers',
+                                  style: TextStyle(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.55)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              isAvailable ? 'Live' : 'Paused',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Stats row
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            children: [
+                              _listingStatTile(context, Icons.bolt, Colors.amber[700]!,
+                                  'R${listing.pricePerKwh.toStringAsFixed(2)}', 'per kWh'),
+                              _listingVDivider(cs),
+                              _listingStatTile(context, Icons.battery_charging_full, Colors.green,
+                                  '${listing.availableEnergy.toStringAsFixed(1)} kWh', 'Available'),
+                              _listingVDivider(cs),
+                              _listingStatTile(context, Icons.electrical_services, cs.primary,
+                                  listing.connectorType, 'Connector'),
+                            ],
+                          ),
                         ),
                       ),
-                      Text(
-                        listing.status == 'available'
-                            ? 'Your energy is available for buyers'
-                            : 'Your listing is currently paused',
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 14),
+
+                      const SizedBox(height: 12),
+
+                      // Second stats row
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            children: [
+                              _listingStatTile(context, Icons.electric_car, cs.primary,
+                                  listing.vehicleType, 'Vehicle'),
+                              _listingVDivider(cs),
+                              _listingStatTile(context, Icons.arrow_downward, Colors.teal,
+                                  '${listing.minEnergySale.toStringAsFixed(1)} kWh', 'Min Sale'),
+                              _listingVDivider(cs),
+                              _listingStatTile(context, Icons.arrow_upward, Colors.deepOrange,
+                                  '${listing.maxEnergySale.toStringAsFixed(1)} kWh', 'Max Sale'),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Description
+                      if (listing.description?.isNotEmpty == true) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, size: 14, color: cs.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  listing.description!,
+                                  style: TextStyle(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.7)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 14),
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _toggleListingStatus(context, provider, listing.status),
+                              icon: Icon(isAvailable ? Icons.pause : Icons.play_arrow, size: 16),
+                              label: Text(isAvailable ? 'Pause' : 'Resume'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isAvailable ? Colors.orange : Colors.green,
+                                side: BorderSide(color: isAvailable ? Colors.orange : Colors.green),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showEditListingDialog(context, provider, listing),
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: const Text('Edit'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showDeleteConfirmation(context, provider),
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: const Text('Delete'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -366,282 +517,256 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               ],
             ),
           ),
+
           const SizedBox(height: 20),
 
-          // Listing Details Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDetailColumn('Price per kWh',
-                            'R${listing.pricePerKwh.toStringAsFixed(2)}'),
-                      ),
-                      Expanded(
-                        child: _buildDetailColumn('Available Energy',
-                            '${listing.availableEnergy.toStringAsFixed(1)} kWh'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDetailColumn('Min Sale',
-                            '${listing.minEnergySale.toStringAsFixed(1)} kWh'),
-                      ),
-                      Expanded(
-                        child: _buildDetailColumn('Max Sale',
-                            '${listing.maxEnergySale.toStringAsFixed(1)} kWh'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDetailColumn(
-                            'Vehicle Type', listing.vehicleType),
-                      ),
-                      Expanded(
-                        child: _buildDetailColumn(
-                            'Connector', listing.connectorType),
-                      ),
-                    ],
-                  ),
-                  if (listing.description != null &&
-                      listing.description!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.info.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Description:',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.info)),
-                          const SizedBox(height: 4),
-                          Text(listing.description!,
-                              style:
-                                  const TextStyle(color: AppColors.info)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
+          // ── Received Requests ───────────────────────────────────────────────
+          Row(
+            children: [
+              Text(
+                'Buyer Requests',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: cs.onSurface),
               ),
-            ),
+              const SizedBox(width: 8),
+              if (provider.receivedRequests.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: cs.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${provider.receivedRequests.length}',
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.bold, color: cs.onPrimary),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
-          // Received Requests
-          if (provider.receivedRequests.isNotEmpty) ...[
-            Text(
-              'Received Requests (${provider.receivedRequests.length})',
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+          if (provider.receivedRequests.isNotEmpty)
             ...provider.receivedRequests.map((request) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 10),
                   child: RequestCard(
                     request: request,
                     isReceived: true,
-                    onAccept: () => _handleRequestResponse(
-                        context, provider, request.id, 'accepted'),
-                    onReject: () => _handleRequestResponse(
-                        context, provider, request.id, 'rejected'),
-                    onViewOnMap: request.status == 'accepted'
+                    onAccept: () => _handleRequestResponse(context, provider, request.id, 'accepted'),
+                    onReject: () => _handleRequestResponse(context, provider, request.id, 'rejected'),
+                    onShowOnMap: request.status == 'accepted' && request.sellerLocationLat != null
                         ? () => _handleViewOnMap(context, request)
                         : null,
+                    onNavigate: request.status == 'accepted' && request.sellerLocationLat != null
+                        ? () => _handleNavigate(
+                            request.sellerLocationLat!,
+                            request.sellerLocationLng!,
+                            request.buyerName ?? 'Buyer')
+                        : null,
                   ),
-                )),
-          ] else ...[
-            // FIX: was hardcoded AppColors.textTertiary / textSecondary
+                ))
+          else
             Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    Icon(Icons.inbox,
-                        size: 48,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.4)),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No requests yet',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.7),
-                      ),
-                    ),
+                    Icon(Icons.inbox_outlined, size: 44,
+                        color: cs.onSurface.withValues(alpha: 0.3)),
+                    const SizedBox(height: 10),
+                    Text('No requests yet',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w500,
+                            color: cs.onSurface.withValues(alpha: 0.6))),
                     const SizedBox(height: 4),
-                    Text(
-                      'Buyers will see your listing and can send requests',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.5)),
-                    ),
+                    Text('Buyers will see your listing and send requests here',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 12, color: cs.onSurface.withValues(alpha: 0.4))),
                   ],
                 ),
               ),
             ),
-          ],
-          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _toggleListingStatus(
-                      context, provider, listing.status),
-                  icon: Icon(listing.status == 'available'
-                      ? Icons.pause
-                      : Icons.play_arrow),
-                  label: Text(listing.status == 'available'
-                      ? 'Pause'
-                      : 'Resume'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: listing.status == 'available'
-                        ? AppColors.warning
-                        : AppColors.success,
-                    side: BorderSide(
-                      color: listing.status == 'available'
-                          ? AppColors.warning
-                          : AppColors.success,
+  Widget _listingStatTile(BuildContext context, IconData icon, Color iconColor,
+      String value, String label) {
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(height: 4),
+            Text(value,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 1),
+            Text(label,
+                style: TextStyle(fontSize: 10, color: cs.onSurface.withValues(alpha: 0.45))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _listingVDivider(ColorScheme cs) => Container(
+        width: 1,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        color: cs.onSurface.withValues(alpha: 0.08),
+      );
+
+  Widget _buildCreateListingView(
+      BuildContext context, MarketplaceProvider provider) {
+    final cs = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Hero card
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Green gradient header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showEditListingDialog(context, provider, listing),
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Edit'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showDeleteConfirmation(context, provider),
-                  icon: const Icon(Icons.delete),
-                  label: const Text('Delete'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.bolt_rounded,
+                            size: 40, color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Start Selling Energy',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Share your EV battery with nearby drivers\nand earn while you're parked",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+
+                // Benefits list
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _benefitRow(cs, Icons.attach_money_rounded, Colors.green,
+                          'Set your own price', 'Choose R/kWh that works for you'),
+                      const SizedBox(height: 14),
+                      _benefitRow(cs, Icons.schedule_rounded, cs.primary,
+                          'Control availability', 'Set hours or leave it always-on'),
+                      const SizedBox(height: 14),
+                      _benefitRow(cs, Icons.verified_user_rounded, Colors.teal,
+                          'Verified transactions', 'Secure peer-to-peer energy trading'),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showCreateListingDialog(context, provider),
+                          icon: const Icon(Icons.add_rounded, size: 20),
+                          label: const Text(
+                            'Create Energy Listing',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2E7D32),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCreateListingView(
-      BuildContext context, MarketplaceProvider provider) {
-    // FIX: was AppColors.textSecondary (hardcoded dark grey)
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.electric_bolt,
-                size: 80, color: AppColors.primaryGreen),
-            const SizedBox(height: 24),
-            const Text(
-              'Start Selling Energy',
-              style:
-                  TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Create your first energy listing and start earning!\nSet your price, availability, and start earning!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.6),
-                fontSize: 16,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  _showCreateListingDialog(context, provider),
-              icon: const Icon(Icons.add),
-              label: const Text(AppStrings.createListing),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-                foregroundColor: AppColors.textOnPrimary,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 16),
-                textStyle: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.help_outline),
-              label: const Text('Tips for selling energy'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // FIX: was AppColors.textSecondary (hardcoded dark grey)
-  Widget _buildDetailColumn(String label, String value) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _benefitRow(ColorScheme cs, IconData icon, Color color,
+      String title, String subtitle) {
+    return Row(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: cs.onSurface.withValues(alpha: 0.6),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
+          child: Icon(icon, color: color, size: 20),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 16),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14)),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withValues(alpha: 0.55))),
+            ],
+          ),
         ),
       ],
     );
   }
+
 
   Widget _buildMyRequestsTab(MarketplaceProvider provider) {
     // FIX: was AppColors.textTertiary / textSecondary
@@ -680,7 +805,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               itemCount: provider.myRequests.length,
               itemBuilder: (context, index) {
                 final request = provider.myRequests[index];
@@ -689,8 +814,16 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                   child: RequestCard(
                     request: request,
                     isReceived: false,
-                    onViewOnMap: request.status == 'accepted'
+                    onShowOnMap: request.status == 'accepted' &&
+                            request.sellerLocationLat != null
                         ? () => _handleViewOnMap(context, request)
+                        : null,
+                    onNavigate: request.status == 'accepted' &&
+                            request.sellerLocationLat != null
+                        ? () => _handleNavigate(
+                            request.sellerLocationLat!,
+                            request.sellerLocationLng!,
+                            request.sellerName ?? 'Seller')
                         : null,
                     onCancel: request.status == 'pending'
                         ? () => _handleCancelRequest(
@@ -989,11 +1122,6 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
 
   Future<void> _handleViewOnMap(
       BuildContext context, EnergyRequest request) async {
-    final mapProvider =
-        Provider.of<MapProvider>(context, listen: false);
-    final marketplaceProvider =
-        Provider.of<MarketplaceProvider>(context, listen: false);
-
     if (request.sellerLocationLat == null ||
         request.sellerLocationLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1005,39 +1133,78 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
       return;
     }
 
-    Position? currentPosition = marketplaceProvider.currentPosition;
-    if (currentPosition == null) {
-      currentPosition =
-          await marketplaceProvider.getCurrentLocation();
-      if (currentPosition == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not get your current location'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    final buyerLocation = LatLng(
-        currentPosition.latitude, currentPosition.longitude);
-    final sellerLocation = LatLng(
-        request.sellerLocationLat!, request.sellerLocationLng!);
-
+    // 1. Signal MapProvider that a route is pending — MapPage will auto-plot it
+    final mapProvider = Provider.of<MapProvider>(context, listen: false);
     mapProvider.setRouteFromCoordinates(
-      start: buyerLocation,
-      end: sellerLocation,
+      start: const LatLng(0, 0), // placeholder; map_page reads its own position
+      end: LatLng(request.sellerLocationLat!, request.sellerLocationLng!),
       destinationName: request.sellerName ?? 'Seller',
+      isAcceptedRoute: true, // energy approved → show Navigate not Request Energy
     );
 
-    if (context.mounted) {
-      final mainScreenState =
-          context.findAncestorStateOfType<MainScreenState>();
-      mainScreenState?.navigateToTab(2);
-    }
+    // 2. Switch to Map tab — map_page detects isNavigating and auto-routes
+    mainScreenKey.currentState?.navigateToTab(2);
+  }
+
+  void _handleNavigate(double lat, double lng, String label) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Navigate with...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.navigation, color: Colors.blue),
+              title: const Text('Google Maps'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse(
+                    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_car, color: Colors.teal),
+              title: const Text('Waze'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  final fallback = Uri.parse(
+                      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+                  if (await canLaunchUrl(fallback)) {
+                    await launchUrl(fallback,
+                        mode: LaunchMode.externalApplication);
+                  }
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.map, color: Colors.orange),
+              title: const Text('Default Maps App'),
+              onTap: () async {
+                Navigator.of(ctx).pop();
+                final url = Uri.parse('geo:$lat,$lng?q=$lat,$lng($label)');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ==========================================================================

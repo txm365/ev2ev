@@ -98,7 +98,12 @@ class MainScreenState extends State<MainScreen>
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 28),
             SizedBox(width: 12),
-            Text('Connected Successfully'),
+            Flexible(
+              child: Text(
+                'Connected Successfully',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: const Text(
