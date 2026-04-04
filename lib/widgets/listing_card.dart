@@ -1,6 +1,5 @@
 // lib/widgets/listing_card.dart
 import 'package:flutter/material.dart';
-//import 'package:intl/intl.dart';
 import '../models/energy_listing.dart';
 
 class ListingCard extends StatelessWidget {
@@ -27,7 +26,7 @@ class ListingCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with seller info and distance
+              // ── Header: avatar + seller info + distance ──────────────────
               Row(
                 children: [
                   // Seller Avatar
@@ -42,7 +41,7 @@ class ListingCard extends StatelessWidget {
                           size: 24,
                         ),
                       ),
-                      // Online status indicator
+                      // Online status dot
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -59,25 +58,30 @@ class ListingCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(width: 12),
-                  
-                  // Seller Details
+
+                  // Seller name + vehicle type — Expanded so it fills remaining space
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Name row — Flexible on the Text so the badge never gets pushed out
                         Row(
                           children: [
-                            Text(
-                              listing.sellerName ?? 'Energy Provider',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            Flexible(
+                              child: Text(
+                                listing.sellerName ?? 'Energy Provider',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 8),
                             // Verified badge
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.green[100],
                                 borderRadius: BorderRadius.circular(8),
@@ -85,7 +89,8 @@ class ListingCard extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.verified, size: 12, color: Colors.green[700]),
+                                  Icon(Icons.verified,
+                                      size: 12, color: Colors.green[700]),
                                   const SizedBox(width: 2),
                                   Text(
                                     'Verified',
@@ -101,19 +106,18 @@ class ListingCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
+                        // Vehicle type + connector
                         Row(
                           children: [
-                            Icon(
-                              _getVehicleIcon(),
-                              size: 14,
-                              color: Colors.grey[600],
-                            ),
+                            Icon(_getVehicleIcon(),
+                                size: 14, color: Colors.grey[600]),
                             const SizedBox(width: 4),
-                            Text(
-                              '${listing.vehicleType.toUpperCase()} • ${listing.connectorType}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
+                            Flexible(
+                              child: Text(
+                                '${listing.vehicleType.toUpperCase()} • ${listing.connectorType}',
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -121,14 +125,16 @@ class ListingCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
-                  // Distance and Time
+
+                  // Distance badge
                   if (listing.distance != null) ...[
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(12),
@@ -145,21 +151,19 @@ class ListingCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '~${_getEstimatedTime()} min drive',
+                          '~${_getEstimatedTime()} min',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 11,
-                          ),
+                              color: Colors.grey[600], fontSize: 11),
                         ),
                       ],
                     ),
                   ],
                 ],
               ),
-              
+
               const SizedBox(height: 16),
 
-              // Energy and Pricing Information
+              // ── Pricing + energy info ────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -168,7 +172,6 @@ class ListingCard extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    // Main pricing and energy info
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -178,37 +181,26 @@ class ListingCard extends StatelessWidget {
                             Text(
                               'Price per kWh',
                               style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
+                                  color: Colors.grey[600], fontSize: 12),
                             ),
-                            const SizedBox(height: 2),
                             Text(
                               'R${listing.pricePerKwh.toStringAsFixed(2)}',
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
                               ),
                             ),
                           ],
                         ),
-                        Container(
-                          height: 40,
-                          width: 1,
-                          color: Colors.grey[300],
-                        ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Available Energy',
+                              'Available',
                               style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
+                                  color: Colors.grey[600], fontSize: 12),
                             ),
-                            const SizedBox(height: 2),
                             Text(
                               '${listing.availableEnergy.toStringAsFixed(1)} kWh',
                               style: const TextStyle(
@@ -221,57 +213,50 @@ class ListingCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    
                     const SizedBox(height: 12),
-                    
-                    // Purchase range info
                     Row(
                       children: [
-                        Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.info_outline,
+                            size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           'Min: ${listing.minEnergySale.toStringAsFixed(0)} kWh',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
+                              color: Colors.grey[600], fontSize: 12),
                         ),
                         const Spacer(),
                         Text(
                           'Max: ${listing.maxEnergySale.toStringAsFixed(0)} kWh',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
+                              color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
-              // Description (if available)
+
+              // ── Description ──────────────────────────────────────────────
               if (listing.description?.isNotEmpty ?? false) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue[25],
+                    color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue[100]!),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.description, size: 16, color: Colors.blue[600]),
+                      Icon(Icons.description,
+                          size: 16, color: Colors.blue[600]),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           listing.description!,
                           style: TextStyle(
-                            color: Colors.blue[700],
-                            fontSize: 14,
-                          ),
+                              color: Colors.blue[700], fontSize: 14),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -283,21 +268,17 @@ class ListingCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Footer with availability info and action button
+              // ── Footer: availability + action button ─────────────────────
               Row(
                 children: [
-                  // Availability info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.schedule,
-                              size: 14,
-                              color: Colors.grey[600],
-                            ),
+                            Icon(Icons.schedule,
+                                size: 14, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
                               'Availability',
@@ -313,23 +294,16 @@ class ListingCard extends StatelessWidget {
                         Text(
                           _getAvailabilityText(),
                           style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                              fontSize: 13, fontWeight: FontWeight.w500),
                         ),
-                        // Last updated
                         Text(
                           'Updated ${_getTimeAgo(listing.updatedAt)}',
                           style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 11,
-                          ),
+                              color: Colors.grey[500], fontSize: 11),
                         ),
                       ],
                     ),
                   ),
-                  
-                  // Action Button
                   ElevatedButton.icon(
                     onPressed: onTap,
                     icon: const Icon(Icons.bolt, size: 18),
@@ -338,9 +312,7 @@ class ListingCard extends StatelessWidget {
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -350,7 +322,7 @@ class ListingCard extends StatelessWidget {
                 ],
               ),
 
-              // Quick stats row
+              // ── Quick stats ──────────────────────────────────────────────
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -363,23 +335,20 @@ class ListingCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildQuickStat(
-                      icon: Icons.star,
-                      label: 'Rating',
-                      value: '4.8',
-                      color: Colors.amber,
-                    ),
+                        icon: Icons.star,
+                        label: 'Rating',
+                        value: '4.8',
+                        color: Colors.amber),
                     _buildQuickStat(
-                      icon: Icons.history,
-                      label: 'Completed',
-                      value: '12',
-                      color: Colors.blue,
-                    ),
+                        icon: Icons.history,
+                        label: 'Completed',
+                        value: '12',
+                        color: Colors.blue),
                     _buildQuickStat(
-                      icon: Icons.speed,
-                      label: 'Response',
-                      value: '< 5min',
-                      color: Colors.green,
-                    ),
+                        icon: Icons.speed,
+                        label: 'Response',
+                        value: '< 5min',
+                        color: Colors.green),
                   ],
                 ),
               ),
@@ -389,6 +358,8 @@ class ListingCard extends StatelessWidget {
       ),
     );
   }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
   Widget _buildQuickStat({
     required IconData icon,
@@ -403,87 +374,65 @@ class ListingCard extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-            color: color,
-          ),
+              fontWeight: FontWeight.bold, fontSize: 12, color: color),
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
         ),
       ],
     );
   }
 
   Color _getVehicleColor() {
-    switch (listing.vehicleType.toLowerCase()) {
-      case 'car':
-        return Colors.blue;
-      case 'bike':
-        return Colors.green;
-      case 'scooter':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+    final v = listing.vehicleType.toLowerCase();
+    if (v.contains('bus')) return const Color(0xFF7B1FA2);
+    if (v.contains('truck')) return const Color(0xFFE65100);
+    if (v.contains('van')) return const Color(0xFF0277BD);
+    if (v.contains('motorcycle') || v.contains('scooter') || v.contains('bike')) {
+      return const Color(0xFF00897B);
     }
+    if (v.contains('station') || v.contains('charging')) {
+      return const Color(0xFFAD1457);
+    }
+    return const Color(0xFF2E7D32); // default: green (car)
   }
 
   IconData _getVehicleIcon() {
-    switch (listing.vehicleType.toLowerCase()) {
-      case 'car':
-        return Icons.directions_car;
-      case 'bike':
-        return Icons.electric_bike;
-      case 'scooter':
-        return Icons.electric_scooter;
-      default:
-        return Icons.electric_car;
+    final v = listing.vehicleType.toLowerCase();
+    if (v.contains('bus')) return Icons.directions_bus;
+    if (v.contains('truck')) return Icons.local_shipping;
+    if (v.contains('van')) return Icons.airport_shuttle;
+    if (v.contains('motorcycle') || v.contains('scooter') || v.contains('bike')) {
+      return Icons.electric_moped;
     }
+    if (v.contains('station') || v.contains('charging')) return Icons.ev_station;
+    return Icons.electric_car;
   }
 
   String _getAvailabilityText() {
     if (listing.availabilityEnd != null) {
       final now = DateTime.now();
       final end = listing.availabilityEnd!;
-      
-      if (end.isBefore(now)) {
-        return 'Expired';
-      }
-      
-      final difference = end.difference(now);
-      if (difference.inDays > 0) {
-        return 'Available for ${difference.inDays} more days';
-      } else if (difference.inHours > 0) {
-        return 'Available for ${difference.inHours} more hours';
-      } else {
-        return 'Available for ${difference.inMinutes} more minutes';
-      }
+      if (end.isBefore(now)) return 'Expired';
+      final diff = end.difference(now);
+      if (diff.inDays > 0) return 'Available for ${diff.inDays} more days';
+      if (diff.inHours > 0) return 'Available for ${diff.inHours} more hours';
+      return 'Available for ${diff.inMinutes} more minutes';
     }
     return 'Available now';
   }
 
   String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   int _getEstimatedTime() {
     if (listing.distance == null) return 0;
-    // Assuming average speed of 30 km/h for city driving
     return (listing.distance! / 30 * 60).round();
   }
 }

@@ -30,6 +30,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        // ignore: prefer_const_constructors
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
         ChangeNotifierProvider(create: (_) => MapProvider()),
@@ -56,17 +57,17 @@ class MyApp extends StatelessWidget {
           // Controlled by ThemeProvider toggle — NOT the system setting
           themeMode: themeProvider.themeMode,
 
-          // Lock font scale to 0.85 — ignores phone accessibility font size
+          // Lock font scale to 1.0 — ignores phone accessibility font size
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(0.85),
+                textScaler: TextScaler.noScaling,
               ),
               child: child!,
             );
           },
 
-          home: const AuthWrapper(),
+          home: const SplashScreen(), // always show splash on cold start
           routes: {
             '/main': (context) => MainScreen(key: mainScreenKey),
             '/login': (context) => const LoginScreen(),
@@ -88,26 +89,9 @@ class AuthWrapper extends StatefulWidget {
 
 class AuthWrapperState extends State<AuthWrapper> {
   @override
-  void initState() {
-    super.initState();
-    _initializeProviders();
-  }
-
-  void _initializeProviders() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final session = supabase.auth.currentSession;
-      if (session != null) {
-        final marketplaceProvider = context.read<MarketplaceProvider>();
-        marketplaceProvider.initialize();
-
-        final bluetoothProvider = context.read<BluetoothProvider>();
-        bluetoothProvider.initialize();
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // AuthWrapper handles post-login/logout state changes from Supabase.
+    // Initial routing is always done by SplashScreen.
     return StreamBuilder<AuthState>(
       stream: supabase.auth.onAuthStateChange,
       builder: (context, snapshot) {
@@ -115,18 +99,16 @@ class AuthWrapperState extends State<AuthWrapper> {
           final authState = snapshot.data!;
 
           if (authState.session != null) {
-            _initializeProviders();
+            // Session active — go to main (handles login from LoginScreen)
             return MainScreen(key: mainScreenKey);
           } else {
-            return const SplashScreen();
+            // Session ended (logout) — go to login
+            return const LoginScreen();
           }
         }
 
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
+        // Stream not yet emitted — show splash while waiting
+        return const SplashScreen();
       },
     );
   }

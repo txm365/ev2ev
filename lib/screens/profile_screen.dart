@@ -1,8 +1,6 @@
 // lib/screens/profile_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 
 final supabase = Supabase.instance.client;
 
@@ -27,7 +25,6 @@ class UserProfile {
     required this.totalEnergyTraded,
   });
 
-  // Factory constructor to create a UserProfile from Supabase data
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       firstName: json['first_name'] ?? '',
@@ -61,16 +58,19 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserProfile() async {
+    // Guard: widget might already be gone before we start
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      // Get the current user's ID
       final userId = supabase.auth.currentUser?.id;
 
       if (userId == null) {
+        if (!mounted) return;
         setState(() {
           _error = 'Not logged in';
           _isLoading = false;
@@ -78,21 +78,23 @@ class ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Fetch user profile from Supabase
       final response = await supabase
           .from('profiles')
           .select()
           .eq('user_id', userId)
           .single();
 
-      
-        _userProfile = UserProfile.fromJson(response);
-     
+      // Guard after the async gap
+      if (!mounted) return;
 
       setState(() {
+        _userProfile = UserProfile.fromJson(response);
         _isLoading = false;
       });
     } catch (e) {
+      // Guard after the async gap
+      if (!mounted) return;
+
       setState(() {
         _error = 'Failed to load profile: $e';
         _isLoading = false;
@@ -102,18 +104,15 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _logout() async {
     await supabase.auth.signOut();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -123,7 +122,9 @@ class ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_error!),
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadUserProfile,
@@ -142,7 +143,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
-              // Handle edit profile
+              // TODO: edit profile
             },
           ),
           IconButton(
@@ -156,6 +157,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Avatar + name + rating ────────────────────────────────────
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -182,7 +184,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
+
+            // ── Contact information ───────────────────────────────────────
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -191,7 +196,8 @@ class ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const Text(
                       'Contact Information',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     ListTile(
@@ -200,17 +206,24 @@ class ProfileScreenState extends State<ProfileScreen> {
                     ),
                     ListTile(
                       leading: const Icon(Icons.phone),
-                      title: Text(_userProfile!.phone),
+                      title: Text(_userProfile!.phone.isNotEmpty
+                          ? _userProfile!.phone
+                          : '—'),
                     ),
                     ListTile(
                       leading: const Icon(Icons.location_on),
-                      title: Text(_userProfile!.address),
+                      title: Text(_userProfile!.address.isNotEmpty
+                          ? _userProfile!.address
+                          : '—'),
                     ),
                   ],
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
+
+            // ── Trading stats ─────────────────────────────────────────────
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -219,33 +232,31 @@ class ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const Text(
                       'Trading Statistics',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     ListTile(
-                      leading: const Icon(Icons.electric_car),
-                      title: const Text('Total Energy Traded'),
-                      trailing: Text('${_userProfile!.totalEnergyTraded} kWh'),
+                      leading: const Icon(Icons.check_circle,
+                          color: Colors.green),
+                      title: const Text('Completed Transactions'),
+                      trailing: Text(
+                        '${_userProfile!.completedTransactions}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
                     ListTile(
-                      leading: const Icon(Icons.history),
-                      title: const Text('Completed Transactions'),
-                      trailing: Text('${_userProfile!.completedTransactions}'),
+                      leading: const Icon(Icons.bolt, color: Colors.amber),
+                      title: const Text('Total Energy Traded'),
+                      trailing: Text(
+                        '${_userProfile!.totalEnergyTraded.toStringAsFixed(1)} kWh',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
-                onPressed: _logout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                ),
-                child: const Text('Logout'),
               ),
             ),
           ],

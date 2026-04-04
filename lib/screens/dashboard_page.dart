@@ -133,7 +133,7 @@ class DashboardPageState extends State<DashboardPage> {
             children: [
               Text(
                 '$greeting,',
-                style: TextStyle(fontSize: 20, color: cs.onSurface.withOpacity(0.6)),
+                style: TextStyle(fontSize: 20, color: cs.onSurface.withValues(alpha: 0.6)),
               ),
               Consumer<ThemeProvider>(
                 builder: (context, theme, _) => IconButton(
@@ -230,7 +230,7 @@ class DashboardPageState extends State<DashboardPage> {
                           ? Icons.bluetooth_connected
                           : Icons.bluetooth,
                       size: 28,
-                      color: isConnected ? Colors.green : cs.onSurface.withOpacity(0.5),
+                      color: isConnected ? Colors.green : cs.onSurface.withValues(alpha: 0.5),
                     ),
                   const SizedBox(width: 4),
                   TextButton(
@@ -268,7 +268,7 @@ class DashboardPageState extends State<DashboardPage> {
                 'Last disconnected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
                 style: TextStyle(
                     fontSize: 12,
-                    color: cs.onSurface.withOpacity(0.5)),
+                    color: cs.onSurface.withValues(alpha: 0.5)),
               ),
             ),
         ],
@@ -292,7 +292,7 @@ class DashboardPageState extends State<DashboardPage> {
             child: Column(
               children: [
                 Icon(Icons.bluetooth_searching,
-                    size: 48, color: cs.onSurface.withOpacity(0.4)),
+                    size: 48, color: cs.onSurface.withValues(alpha: 0.4)),
                 const SizedBox(height: 16),
                 const Text(
                   'Connect to a device to view data',
@@ -304,7 +304,7 @@ class DashboardPageState extends State<DashboardPage> {
                   'Use the Connect button above to scan for nearby devices',
                   style: TextStyle(
                       fontSize: 14,
-                      color: cs.onSurface.withOpacity(0.6)),
+                      color: cs.onSurface.withValues(alpha: 0.6)),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -354,7 +354,7 @@ class DashboardPageState extends State<DashboardPage> {
                           data['profile'] ?? 'Electric Vehicle',
                           style: TextStyle(
                               fontSize: 14,
-                              color: cs.onSurface.withOpacity(0.6)),
+                              color: cs.onSurface.withValues(alpha: 0.6)),
                         ),
                       ],
                     ),
@@ -424,7 +424,7 @@ class DashboardPageState extends State<DashboardPage> {
                   'Last updated ${DateFormat('HH:mm').format(DateTime.now())}',
                   style: TextStyle(
                       fontSize: 12,
-                      color: cs.onSurface.withOpacity(0.5)),
+                      color: cs.onSurface.withValues(alpha: 0.5)),
                 ),
               ],
             ),
@@ -441,7 +441,7 @@ class DashboardPageState extends State<DashboardPage> {
                     Text('State of Charge',
                         style: TextStyle(
                             fontSize: 16,
-                            color: cs.onSurface.withOpacity(0.6))),
+                            color: cs.onSurface.withValues(alpha: 0.6))),
                     Text(
                       '${data['bl']?.toStringAsFixed(0) ?? '0'}%',
                       style: const TextStyle(
@@ -455,7 +455,7 @@ class DashboardPageState extends State<DashboardPage> {
                     Text('Est. Drivable Range',
                         style: TextStyle(
                             fontSize: 16,
-                            color: cs.onSurface.withOpacity(0.6))),
+                            color: cs.onSurface.withValues(alpha: 0.6))),
                     Text(
                       '${data['range']?.toStringAsFixed(0) ?? '0'} km',
                       style: const TextStyle(
@@ -466,14 +466,14 @@ class DashboardPageState extends State<DashboardPage> {
               ],
             ),
 
-            Divider(height: 40, thickness: 1, color: cs.outline.withOpacity(0.3)),
+            Divider(height: 40, thickness: 1, color: cs.outline.withValues(alpha: 0.3)),
 
             Text(
               'Performance Metrics',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: cs.onSurface.withOpacity(0.8),
+                color: cs.onSurface.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 12),
@@ -531,7 +531,7 @@ class DashboardPageState extends State<DashboardPage> {
               Container(
                 width: 1,
                 height: 100,
-                color: cs.outline.withOpacity(0.3),
+                color: cs.outline.withValues(alpha: 0.3),
                 margin: const EdgeInsets.symmetric(vertical: 20),
               ),
               Expanded(
@@ -561,7 +561,7 @@ class DashboardPageState extends State<DashboardPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withOpacity(0.6),
+                    .withValues(alpha: 0.6),
                 fontSize: 16)),
       ],
     );
@@ -587,7 +587,7 @@ class DashboardPageState extends State<DashboardPage> {
                 color: color)),
         Text('Battery',
             style: TextStyle(
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
                 fontSize: 16)),
       ],
     );
@@ -596,7 +596,7 @@ class DashboardPageState extends State<DashboardPage> {
   Widget _buildBatteryIndicator(
       double level, Color color, bool isCharging) {
     final outlineColor =
-        Theme.of(context).colorScheme.outline.withOpacity(0.6);
+        Theme.of(context).colorScheme.outline.withValues(alpha: 0.6);
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -648,7 +648,7 @@ class DashboardPageState extends State<DashboardPage> {
       subtitle: Text(title,
           style: TextStyle(
               fontSize: 14,
-              color: cs.onSurface.withOpacity(0.6))),
+              color: cs.onSurface.withValues(alpha: 0.6))),
     );
   }
 
@@ -674,11 +674,14 @@ class DashboardPageState extends State<DashboardPage> {
       builder: (context, bluetoothProvider, child) {
         _bluetoothProvider = bluetoothProvider;
 
-        final bluetoothData = bluetoothProvider.deviceData ?? {
-          'profile': '', 'brand': '', 'model': '',
-          'bl': 0.0, 'v': 0.0, 'I': 0.0, 'T': 0.0,
-          'P': 0.0, 'range': 0.0,
-        };
+        final Map<String, dynamic> bluetoothData =
+            bluetoothProvider.deviceData.isEmpty
+                ? {
+                    'profile': '', 'brand': '', 'model': '',
+                    'bl': 0.0, 'v': 0.0, 'I': 0.0, 'T': 0.0,
+                    'P': 0.0, 'range': 0.0,
+                  }
+                : bluetoothProvider.deviceData;
         final isConnected = bluetoothProvider.isConnected;
         final isCharging =
             (bluetoothData['I']?.toDouble() ?? 0.0) < 0;

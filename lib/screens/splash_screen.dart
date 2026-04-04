@@ -2,7 +2,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/marketplace_provider.dart';
+import '../providers/bluetooth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -53,6 +56,12 @@ class SplashScreenState extends State<SplashScreen>
 
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
+      // Initialize providers before navigating so dashboard data is ready
+      if (mounted) {
+        context.read<MarketplaceProvider>().initialize();
+        context.read<BluetoothProvider>().initialize();
+      }
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/main');
     } else {
       Navigator.pushReplacementNamed(context, '/login');
@@ -326,7 +335,7 @@ class _DashedCirclePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
     final dashAngle = (2 * pi) / dashCount;
-    final gapFraction = 0.4; // 40% gap between dashes
+    const gapFraction = 0.4; // 40% gap between dashes
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle = i * dashAngle;
