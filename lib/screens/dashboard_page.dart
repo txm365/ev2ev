@@ -19,7 +19,6 @@ class DashboardPageState extends State<DashboardPage> {
   String? _userName;
   bool _loadingProfile = true;
   String? _avatarUrl;
-  String? _profileError;
   bool _initializingBluetooth = false;
 
   @override
@@ -49,7 +48,6 @@ class DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     setState(() {
       _loadingProfile = true;
-      _profileError = null;
     });
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -72,15 +70,13 @@ class DashboardPageState extends State<DashboardPage> {
           }
           _avatarUrl = response['avatar_url']?.toString();
           _loadingProfile = false;
-          _profileError = null;
-        });
+            });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _userName = 'User';
           _loadingProfile = false;
-          _profileError = 'Failed to load profile';
         });
       }
     }
@@ -109,42 +105,52 @@ class DashboardPageState extends State<DashboardPage> {
     if (mounted) setState(() {});
   }
 
+  // ── helpers ────────────────────────────────────────────────────────────────
+  Color _batteryColor(double level) {
+    if (level < 20) return Colors.red;
+    if (level < 50) return Colors.orange;
+    return const Color(0xFF2E7D32);
+  }
+
+  Color _tempColor(double temp) {
+    if (temp < 15) return Colors.blue;
+    if (temp < 30) return const Color(0xFF2E7D32);
+    if (temp < 40) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // GREETING HEADER
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildUserGreetingWithConnection() {
+  Widget _buildHeader() {
     final cs = Theme.of(context).colorScheme;
     final isConnected = _bluetoothProvider?.isConnected ?? false;
-    final hour = DateTime.now().hour;
-    final String greeting = hour < 12
-        ? 'Good Morning'
-        : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: greeting + dark/light toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '$greeting,',
-                style: TextStyle(fontSize: 20, color: cs.onSurface.withValues(alpha: 0.6)),
-              ),
+              Text('${ _greeting()},',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: cs.onSurface.withValues(alpha: 0.55))),
               Consumer<ThemeProvider>(
-                builder: (context, theme, _) => IconButton(
-                  tooltip: theme.isDarkMode
-                      ? 'Switch to Light Mode'
-                      : 'Switch to Dark Mode',
+                builder: (_, theme, __) => IconButton(
                   icon: Icon(
                     theme.isDarkMode
                         ? Icons.light_mode_outlined
                         : Icons.dark_mode_outlined,
-                    color: cs.onSurface,
                   ),
                   onPressed: theme.toggleTheme,
                 ),
@@ -152,9 +158,6 @@ class DashboardPageState extends State<DashboardPage> {
             ],
           ),
 
-          const SizedBox(height: 4),
-
-          // Row 2: avatar + name | BT status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -179,60 +182,41 @@ class DashboardPageState extends State<DashboardPage> {
                             fontWeight: FontWeight.bold),
                       ),
                     ),
-                  if (_avatarUrl != null || !_loadingProfile)
-                    const SizedBox(width: 12),
+                  if (!_loadingProfile) const SizedBox(width: 10),
                   _loadingProfile
                       ? const SizedBox(
                           width: 100,
                           child: LinearProgressIndicator())
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _userName ?? 'User',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: cs.primary,
-                              ),
-                            ),
-                            if (_profileError != null)
-                              GestureDetector(
-                                onTap: _fetchUserProfile,
-                                child: Text(
-                                  'Tap to retry',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: cs.error,
-                                    decoration:
-                                        TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                          ],
+                      : Text(
+                          _userName ?? 'User',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: cs.primary,
+                          ),
                         ),
                 ],
               ),
 
-              // BT icon + connect/disconnect
+              // BT connect / disconnect
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_initializingBluetooth)
                     const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                   else
                     Icon(
                       isConnected
                           ? Icons.bluetooth_connected
                           : Icons.bluetooth,
-                      size: 28,
-                      color: isConnected ? Colors.green : cs.onSurface.withValues(alpha: 0.5),
+                      size: 22,
+                      color: isConnected
+                          ? Colors.green
+                          : cs.onSurface.withValues(alpha: 0.4),
                     ),
-                  const SizedBox(width: 4),
                   TextButton(
                     onPressed: _initializingBluetooth
                         ? null
@@ -240,17 +224,17 @@ class DashboardPageState extends State<DashboardPage> {
                             if (isConnected) {
                               await _bluetoothProvider?.disconnect();
                             } else {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const BluetoothScanPage()),
-                              );
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) =>
+                                      const BluetoothScanPage()));
                             }
                           },
                     child: Text(
                       _initializingBluetooth
                           ? 'Loading...'
-                          : (isConnected ? 'Disconnect' : 'Connect'),
+                          : isConnected
+                              ? 'Disconnect'
+                              : 'Connect',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
@@ -259,16 +243,15 @@ class DashboardPageState extends State<DashboardPage> {
             ],
           ),
 
-          // Last-disconnected hint
           if (_bluetoothProvider?.lastDisconnectedTime != null &&
               !isConnected)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(
-                'Last disconnected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
+                'Last connected: ${DateFormat('h:mm a').format(_bluetoothProvider!.lastDisconnectedTime!)}',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.5)),
+                    fontSize: 11,
+                    color: cs.onSurface.withValues(alpha: 0.4)),
               ),
             ),
         ],
@@ -277,228 +260,661 @@ class DashboardPageState extends State<DashboardPage> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // STATUS + METRICS CARD
+  // DISCONNECTED EMPTY STATE
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildCombinedStatusMetricsCard(
-      Map<String, dynamic> data, bool isConnected) {
+  Widget _buildDisconnectedState() {
     final cs = Theme.of(context).colorScheme;
-
-    if (!isConnected) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          // Connect prompt card
+          Card(
+            elevation: 2,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                Icon(Icons.bluetooth_searching,
-                    size: 48, color: cs.onSurface.withValues(alpha: 0.4)),
-                const SizedBox(height: 16),
-                const Text(
-                  'Connect to a device to view data',
-                  style: TextStyle(fontSize: 16),
-                  textAlign: TextAlign.center,
+                Container(
+                  height: 4,
+                  color: cs.onSurface.withValues(alpha: 0.08),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Use the Connect button above to scan for nearby devices',
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: cs.onSurface.withValues(alpha: 0.6)),
-                  textAlign: TextAlign.center,
+                Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.bluetooth_searching,
+                            size: 36, color: cs.primary),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No Device Connected',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Connect your EV via Bluetooth to see live battery, '
+                        'power and temperature data.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: cs.onSurface.withValues(alpha: 0.55),
+                            height: 1.5),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const BluetoothScanPage())),
+                          icon: const Icon(Icons.bluetooth_rounded, size: 18),
+                          label: const Text('Scan for Devices',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-      );
-    }
 
-    final isCharging = (data['I']?.toDouble() ?? 0.0) < 0;
-    final hasVehicleInfo =
-        (data['brand']?.toString() ?? '').isNotEmpty;
+          const SizedBox(height: 14),
 
+          // Tips row — two small cards
+          Row(
+            children: [
+              Expanded(
+                child: _tipCard(
+                  icon: Icons.battery_charging_full,
+                  color: const Color(0xFF2E7D32),
+                  title: 'Sell Energy',
+                  body: 'List your battery on the marketplace when parked.',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _tipCard(
+                  icon: Icons.map_outlined,
+                  color: Colors.blue,
+                  title: 'Find Sellers',
+                  body: 'Browse the map to find nearby energy sellers.',
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              Expanded(
+                child: _tipCard(
+                  icon: Icons.account_balance_wallet_outlined,
+                  color: Colors.purple,
+                  title: 'POL Wallet',
+                  body: 'Pay and receive energy payments via Polygon.',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _tipCard(
+                  icon: Icons.shield_outlined,
+                  color: Colors.teal,
+                  title: 'Escrow Safe',
+                  body: 'Smart contract holds funds until delivery.',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tipCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String body,
+  }) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20)),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Vehicle info header
-            if (hasVehicleInfo)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    Icon(
-                      data['profile'] == 'Electric Car'
-                          ? Icons.directions_car
-                          : Icons.electric_scooter,
-                      size: 40,
-                      color: cs.primary,
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${data['brand'] ?? 'Unknown'} ${data['model'] ?? 'Vehicle'}',
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 10),
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(body,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurface.withValues(alpha: 0.55),
+                    height: 1.4)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONNECTED STATE
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildConnectedDashboard(Map<String, dynamic> data) {
+    final cs = Theme.of(context).colorScheme;
+    final isCharging = (data['I']?.toDouble() ?? 0.0) < 0;
+    final battery = data['bl']?.toDouble() ?? 0.0;
+    final voltage = data['v']?.toDouble() ?? 0.0;
+    final current = (data['I']?.toDouble() ?? 0.0).abs();
+    final power = data['P']?.toDouble() ?? 0.0;
+    final temp = data['T']?.toDouble() ?? 0.0;
+    final range = data['range']?.toDouble() ?? 0.0;
+    final hasVehicle = (data['brand']?.toString() ?? '').isNotEmpty;
+    final battColor = _batteryColor(battery);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+
+          // ── Single unified card ────────────────────────────────────────
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+
+                // Accent bar — battery colour
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      battColor,
+                      battColor.withValues(alpha: 0.35),
+                    ]),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      // ── Vehicle header ─────────────────────────────────
+                      if (hasVehicle) ...[
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Icon(
+                                data['profile'] == 'Electric Car'
+                                    ? Icons.directions_car
+                                    : Icons.electric_moped,
+                                color: cs.primary,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${data['brand'] ?? ''} ${data['model'] ?? ''}'.trim(),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                  ),
+                                  Text(
+                                    data['profile'] ?? 'Electric Vehicle',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: cs.onSurface.withValues(alpha: 0.5)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Live badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.green.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6, height: 6,
+                                    decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text('Live',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.green[700],
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          data['profile'] ?? 'Electric Vehicle',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: cs.onSurface.withValues(alpha: 0.6)),
+
+                        // Separator
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          child: Divider(
+                              height: 1,
+                              color: cs.outline.withValues(alpha: 0.12)),
                         ),
                       ],
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text(
-                                '${data['brand'] ?? 'Vehicle'} Details'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+
+                      // ── SOC + Range ────────────────────────────────────
+                      Row(
+                        children: [
+                          // SOC
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                    'Model: ${data['model'] ?? 'N/A'}'),
-                                Text(
-                                    'Type: ${data['profile'] ?? 'N/A'}'),
-                                const SizedBox(height: 16),
-                                const Text('Current Status:',
+                                Text('State of Charge',
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                Text('Voltage: ${data['v'] ?? 0} V'),
-                                Text('Current: ${data['I'] ?? 0} A'),
-                                Text('Power: ${data['P'] ?? 0} W'),
+                                        fontSize: 11,
+                                        color: cs.onSurface.withValues(alpha: 0.5))),
+                                const SizedBox(height: 2),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('${battery.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                            fontSize: 44,
+                                            fontWeight: FontWeight.bold,
+                                            color: battColor,
+                                            height: 1)),
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          bottom: 6, left: 2),
+                                      child: Text('%',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: battColor)),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
-                            actions: [
-                              TextButton(
-                                child: const Text('Close'),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-            // Charging/Discharging row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(isCharging ? Icons.bolt : Icons.power,
-                        color:
-                            isCharging ? Colors.green : Colors.red),
-                    const SizedBox(width: 8),
-                    Text(
-                      isCharging ? 'CHARGING' : 'DISCHARGING',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            isCharging ? Colors.green : Colors.red,
+                          Container(
+                              width: 1,
+                              height: 52,
+                              color: cs.outline.withValues(alpha: 0.12)),
+                          // Range
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Est. Range',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: cs.onSurface.withValues(alpha: 0.5))),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('${range.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                              fontSize: 44,
+                                              fontWeight: FontWeight.bold,
+                                              height: 1)),
+                                      const Padding(
+                                        padding: EdgeInsets.only(
+                                            bottom: 6, left: 2),
+                                        child: Text('km',
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Last updated ${DateFormat('HH:mm').format(DateTime.now())}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.5)),
+
+                      const SizedBox(height: 12),
+
+                      // Battery bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: battery / 100,
+                          minHeight: 8,
+                          backgroundColor: cs.outline.withValues(alpha: 0.1),
+                          valueColor: AlwaysStoppedAnimation(battColor),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Charging pill + timestamp
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isCharging
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: isCharging
+                                      ? Colors.green.withValues(alpha: 0.35)
+                                      : Colors.orange.withValues(alpha: 0.35)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                    isCharging
+                                        ? Icons.bolt_rounded
+                                        : Icons.power_outlined,
+                                    size: 13,
+                                    color: isCharging
+                                        ? Colors.green
+                                        : Colors.orange),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isCharging ? 'Charging' : 'Discharging',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isCharging
+                                          ? Colors.green
+                                          : Colors.orange),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            DateFormat('HH:mm:ss').format(DateTime.now()),
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: cs.onSurface.withValues(alpha: 0.3)),
+                          ),
+                        ],
+                      ),
+
+                      // ── Separator ──────────────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: Divider(
+                            height: 1,
+                            color: cs.outline.withValues(alpha: 0.12)),
+                      ),
+
+                      // ── 4 metrics inline ───────────────────────────────
+                      IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _inlineMetric(
+                              icon: Icons.bolt,
+                              iconColor: Colors.amber[700]!,
+                              value: voltage.toStringAsFixed(1),
+                              unit: 'V',
+                              label: 'Voltage',
+                              cs: cs,
+                            ),
+                            _metricVDivider(cs),
+                            _inlineMetric(
+                              icon: Icons.electric_bolt,
+                              iconColor: Colors.blue,
+                              value: current.toStringAsFixed(1),
+                              unit: 'A',
+                              label: 'Current',
+                              cs: cs,
+                            ),
+                            _metricVDivider(cs),
+                            _inlineMetric(
+                              icon: Icons.power,
+                              iconColor: isCharging
+                                  ? const Color(0xFF2E7D32)
+                                  : Colors.orange,
+                              value: power.abs().toStringAsFixed(1),
+                              unit: 'W',
+                              label: 'Power',
+                              cs: cs,
+                            ),
+                            _metricVDivider(cs),
+                            _inlineMetric(
+                              icon: Icons.thermostat,
+                              iconColor: _tempColor(temp),
+                              value: temp.toStringAsFixed(1),
+                              unit: '°C',
+                              label: 'Temp',
+                              cs: cs,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-            // SOC + Range
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('State of Charge',
-                        style: TextStyle(
-                            fontSize: 16,
-                            color: cs.onSurface.withValues(alpha: 0.6))),
-                    Text(
-                      '${data['bl']?.toStringAsFixed(0) ?? '0'}%',
-                      style: const TextStyle(
-                          fontSize: 36, fontWeight: FontWeight.bold),
+          // ── Power flow card (kept separate — it earns its space) ───────
+          _buildPowerFlowCard(voltage, current, power, isCharging, cs),
+        ],
+      ),
+    );
+  }
+
+  Widget _inlineMetric({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String unit,
+    required String label,
+    required ColorScheme cs,
+  }) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: iconColor),
+            const SizedBox(height: 4),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
                     ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('Est. Drivable Range',
-                        style: TextStyle(
-                            fontSize: 16,
-                            color: cs.onSurface.withValues(alpha: 0.6))),
-                    Text(
-                      '${data['range']?.toStringAsFixed(0) ?? '0'} km',
-                      style: const TextStyle(
-                          fontSize: 36, fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(
+                    text: unit,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: cs.onSurface.withValues(alpha: 0.45),
                     ),
-                  ],
-                ),
-              ],
-            ),
-
-            Divider(height: 40, thickness: 1, color: cs.outline.withValues(alpha: 0.3)),
-
-            Text(
-              'Performance Metrics',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: cs.onSurface.withValues(alpha: 0.8),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurface.withValues(alpha: 0.4))),
+          ],
+        ),
+      ),
+    );
+  }
 
-            Column(
+  Widget _metricVDivider(ColorScheme cs) => Container(
+        width: 1,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        color: cs.onSurface.withValues(alpha: 0.08),
+      );
+
+  // ── Power flow visualisation ───────────────────────────────────────────────
+  Widget _buildPowerFlowCard(double voltage, double current,
+      double power, bool isCharging, ColorScheme cs) {
+    final flowColor =
+        isCharging ? const Color(0xFF2E7D32) : Colors.orange;
+
+    return Card(
+      elevation: 2,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _buildMetricTile('Voltage',
-                        '${data['v']?.toStringAsFixed(1) ?? '0.0'} V',
-                        Icons.bolt)),
-                    Expanded(child: _buildMetricTile('Current',
-                        '${data['I']?.toStringAsFixed(1) ?? '0.0'} A',
-                        Icons.electric_bolt)),
-                  ],
+                Icon(Icons.electric_bolt,
+                    size: 16, color: flowColor),
+                const SizedBox(width: 6),
+                Text('Power Flow',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface.withValues(alpha: 0.7))),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Source
+                _flowNode(
+                  icon: isCharging
+                      ? Icons.ev_station
+                      : Icons.battery_full,
+                  label: isCharging ? 'Charger' : 'Battery',
+                  color: flowColor,
+                  cs: cs,
                 ),
-                Row(
-                  children: [
-                    Expanded(child: _buildMetricTile('Power',
-                        '${data['P']?.toStringAsFixed(1) ?? '0.0'} W',
-                        Icons.power)),
-                    Expanded(child: _buildMetricTile('Temperature',
-                        '${data['T']?.toStringAsFixed(1) ?? '0.0'}°C',
-                        Icons.thermostat)),
-                  ],
+
+                // Animated flow arrow
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Power value above arrow
+                      Text(
+                        '${power.abs().toStringAsFixed(0)} W',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: flowColor),
+                      ),
+                      const SizedBox(height: 4),
+                      // Arrow
+                      Row(
+                        children: List.generate(
+                          5,
+                          (i) => Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 1),
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: flowColor.withValues(
+                                    alpha: (i + 1) / 5),
+                                borderRadius:
+                                    BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${voltage.toStringAsFixed(1)}V · ${current.toStringAsFixed(1)}A',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onSurface
+                                .withValues(alpha: 0.4)),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Destination
+                _flowNode(
+                  icon: isCharging
+                      ? Icons.battery_charging_full
+                      : Icons.electric_car,
+                  label: isCharging ? 'Battery' : 'Motor',
+                  color: flowColor,
+                  cs: cs,
                 ),
               ],
             ),
@@ -508,166 +924,35 @@ class DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // GAUGES CARD
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildGaugesCard(double temperature, double batteryLevel,
-      bool isCharging, bool isConnected) {
-    if (!isConnected || batteryLevel <= 0) return const SizedBox.shrink();
-
-    final cs = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: SizedBox(
-          height: 140,
-          child: Row(
-            children: [
-              Expanded(
-                  child: _buildTemperatureSection(temperature)),
-              Container(
-                width: 1,
-                height: 100,
-                color: cs.outline.withValues(alpha: 0.3),
-                margin: const EdgeInsets.symmetric(vertical: 20),
-              ),
-              Expanded(
-                  child: _buildBatterySection(
-                      batteryLevel, isCharging)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTemperatureSection(double temperature) {
-    final color = _getTemperatureColor(temperature);
+  Widget _flowNode({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required ColorScheme cs,
+  }) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.thermostat, size: 56, color: color),
-        const SizedBox(height: 4),
-        Text('${temperature.toStringAsFixed(1)}°C',
-            style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color)),
-        Text('Temperature',
-            style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-                fontSize: 11)),
-      ],
-    );
-  }
-
-  Widget _buildBatterySection(double level, bool isCharging) {
-    final color = _getBatteryColor(level);
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildBatteryIndicator(level, color, isCharging),
-        const SizedBox(height: 4),
-        Text('${level.toStringAsFixed(1)}%',
-            style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color)),
-        Text(isCharging ? 'CHARGING' : 'DISCHARGING',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color)),
-        Text('Battery',
-            style: TextStyle(
-                color: cs.onSurface.withValues(alpha: 0.6),
-                fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildBatteryIndicator(
-      double level, Color color, bool isCharging) {
-    final outlineColor =
-        Theme.of(context).colorScheme.outline.withValues(alpha: 0.6);
-    return Stack(
-      alignment: Alignment.center,
       children: [
         Container(
-          width: 28,
-          height: 60,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
-            border: Border.all(color: outlineColor, width: 2),
-            borderRadius: BorderRadius.circular(6),
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: color.withValues(alpha: 0.3), width: 1.5),
           ),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              height: level / 100 * 56,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(6)),
-              ),
-            ),
-          ),
+          child: Icon(icon, color: color, size: 22),
         ),
-        if (isCharging)
-          const Icon(Icons.bolt, color: Colors.white, size: 18),
-        Positioned(
-          right: -8,
-          top: 16,
-          child: Container(
-            width: 6,
-            height: 14,
-            decoration: BoxDecoration(
-              color: outlineColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurface.withValues(alpha: 0.55))),
       ],
     );
   }
 
-  Widget _buildMetricTile(
-      String title, String value, IconData icon) {
-    final cs = Theme.of(context).colorScheme;
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      leading: Icon(icon, color: cs.primary, size: 22),
-      title: Text(value,
-          style: const TextStyle(
-              fontSize: 15, fontWeight: FontWeight.bold)),
-      subtitle: Text(title,
-          style: TextStyle(
-              fontSize: 12,
-              color: cs.onSurface.withValues(alpha: 0.6))),
-    );
-  }
 
-  Color _getTemperatureColor(double temp) {
-    if (temp < 15) return Colors.blue;
-    if (temp < 30) return Colors.green;
-    if (temp < 40) return Colors.orange;
-    return Colors.red;
-  }
-
-  Color _getBatteryColor(double level) {
-    if (level < 20) return Colors.red;
-    if (level < 50) return Colors.orange;
-    return Colors.green;
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // BUILD
@@ -678,7 +963,7 @@ class DashboardPageState extends State<DashboardPage> {
       builder: (context, bluetoothProvider, child) {
         _bluetoothProvider = bluetoothProvider;
 
-        final Map<String, dynamic> bluetoothData =
+        final Map<String, dynamic> data =
             bluetoothProvider.deviceData.isEmpty
                 ? {
                     'profile': '', 'brand': '', 'model': '',
@@ -687,11 +972,8 @@ class DashboardPageState extends State<DashboardPage> {
                   }
                 : bluetoothProvider.deviceData;
         final isConnected = bluetoothProvider.isConnected;
-        final isCharging =
-            (bluetoothData['I']?.toDouble() ?? 0.0) < 0;
 
         return Scaffold(
-          // No hardcoded color — theme scaffoldBackgroundColor handles it
           body: RefreshIndicator(
             onRefresh: () async {
               await _fetchUserProfile();
@@ -699,7 +981,7 @@ class DashboardPageState extends State<DashboardPage> {
                 try {
                   await bluetoothProvider.attemptAutoReconnect();
                 } catch (e) {
-                  debugPrint('Refresh connection error: $e');
+                  debugPrint('Refresh error: $e');
                 }
               }
             },
@@ -709,16 +991,13 @@ class DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildUserGreetingWithConnection(),
-                    _buildCombinedStatusMetricsCard(
-                        bluetoothData, isConnected),
-                    _buildGaugesCard(
-                      bluetoothData['T']?.toDouble() ?? 0.0,
-                      bluetoothData['bl']?.toDouble() ?? 0.0,
-                      isCharging,
-                      isConnected,
-                    ),
-                    const SizedBox(height: 24),
+                    _buildHeader(),
+                    const SizedBox(height: 8),
+                    if (isConnected)
+                      _buildConnectedDashboard(data)
+                    else
+                      _buildDisconnectedState(),
+                    const SizedBox(height: 28),
                   ],
                 ),
               ),

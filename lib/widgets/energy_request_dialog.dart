@@ -216,12 +216,15 @@ class EnergyRequestDialogState extends State<EnergyRequestDialog> {
                         if (v == null || v.isEmpty) return 'Enter an amount';
                         final e = double.tryParse(v);
                         if (e == null) return 'Enter a valid number';
-                        if (e < widget.listing.minEnergySale)
+                        if (e < widget.listing.minEnergySale) {
                           return 'Minimum is ${widget.listing.minEnergySale} kWh';
-                        if (e > widget.listing.maxEnergySale)
+                        }
+                        if (e > widget.listing.maxEnergySale) {
                           return 'Maximum is ${widget.listing.maxEnergySale} kWh';
-                        if (e > widget.listing.availableEnergy)
+                        }
+                        if (e > widget.listing.availableEnergy) {
                           return 'Only ${widget.listing.availableEnergy} kWh available';
+                        }
                         return null;
                       },
                       onChanged: (_) => setState(() {}),

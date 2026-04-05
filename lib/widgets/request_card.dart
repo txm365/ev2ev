@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/energy_request.dart';
 
-class RequestCard extends StatelessWidget {
+class RequestCard extends StatefulWidget {
   final EnergyRequest request;
   final bool isReceived;
   final VoidCallback? onAccept;
@@ -11,6 +11,7 @@ class RequestCard extends StatelessWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onShowOnMap;
   final VoidCallback? onNavigate;
+  final VoidCallback? onPayWithMatic;
 
   const RequestCard({
     super.key,
@@ -21,19 +22,53 @@ class RequestCard extends StatelessWidget {
     this.onCancel,
     this.onShowOnMap,
     this.onNavigate,
+    this.onPayWithMatic,
   });
 
+  @override
+  State<RequestCard> createState() => _RequestCardState();
+}
+
+class _RequestCardState extends State<RequestCard>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+  late final AnimationController _ctrl;
+  late final Animation<double> _expandAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+    _expandAnim =
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    _expanded ? _ctrl.forward() : _ctrl.reverse();
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
   Color _statusColor() {
-    switch (request.status) {
+    switch (widget.request.status) {
       case 'accepted': return const Color(0xFF2E7D32);
       case 'rejected': return const Color(0xFFC62828);
       case 'cancelled': return Colors.grey;
-      default: return const Color(0xFFE65100); // pending
+      default: return const Color(0xFFE65100);
     }
   }
 
   IconData _statusIcon() {
-    switch (request.status) {
+    switch (widget.request.status) {
       case 'accepted': return Icons.check_circle_rounded;
       case 'rejected': return Icons.cancel_rounded;
       case 'cancelled': return Icons.block_rounded;
@@ -41,7 +76,8 @@ class RequestCard extends StatelessWidget {
     }
   }
 
-  String _statusLabel() => request.status[0].toUpperCase() + request.status.substring(1);
+  String _statusLabel() => widget.request.status[0].toUpperCase() +
+      widget.request.status.substring(1);
 
   String _formatTimestamp(DateTime t) {
     final diff = DateTime.now().difference(t);
@@ -53,285 +89,384 @@ class RequestCard extends StatelessWidget {
   }
 
   bool _hasLocation() =>
-      request.sellerLocationLat != null && request.sellerLocationLng != null;
+      widget.request.sellerLocationLat != null &&
+      widget.request.sellerLocationLng != null;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final sc = _statusColor();
-    final total = request.offeredPricePerKwh != null
-        ? request.offeredPricePerKwh! * request.requestedEnergy
+    final total = widget.request.offeredPricePerKwh != null
+        ? widget.request.offeredPricePerKwh! * widget.request.requestedEnergy
         : null;
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 0),
       elevation: 2,
       shadowColor: sc.withValues(alpha: 0.15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── Status accent bar ──────────────────────────────────────────────
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [sc, sc.withValues(alpha: 0.4)],
+      child: InkWell(
+        onTap: _toggle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Status accent bar
+            Container(
+              height: 4,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [sc, sc.withValues(alpha: 0.4)]),
               ),
             ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Header ──────────────────────────────────────────────────
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: sc.withValues(alpha: 0.12),
-                      child: Icon(_statusIcon(), color: sc, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // ── Collapsed header (always visible) ──────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Status avatar
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: sc.withValues(alpha: 0.12),
+                        child: Icon(_statusIcon(), color: sc, size: 20),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // Name + subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.isReceived
+                                  ? (widget.request.buyerName ?? 'Buyer')
+                                  : (widget.request.sellerName ?? 'Seller'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              widget.isReceived
+                                  ? 'Wants to buy energy from you'
+                                  : 'Your energy request',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.onSurface
+                                      .withValues(alpha: 0.5)),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // kWh + status chip + chevron
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            isReceived
-                                ? (request.buyerName ?? 'Buyer')
-                                : (request.sellerName ?? 'Seller'),
+                            '${widget.request.requestedEnergy.toStringAsFixed(1)} kWh',
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15),
-                            overflow: TextOverflow.ellipsis,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            isReceived
-                                ? 'Wants to buy energy from you'
-                                : 'Your energy request',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: cs.onSurface.withValues(alpha: 0.55)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: sc.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: sc.withValues(alpha: 0.35)),
+                            ),
+                            child: Text(
+                              _statusLabel(),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: sc),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    // Status chip
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: sc.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: sc.withValues(alpha: 0.4)),
+
+                      const SizedBox(width: 6),
+
+                      // Chevron
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 220),
+                        child: Icon(Icons.keyboard_arrow_down,
+                            size: 20,
+                            color:
+                                cs.onSurface.withValues(alpha: 0.4)),
                       ),
-                      child: Text(
-                        _statusLabel(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: sc,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-
-                // ── Stats row ─────────────────────────────────────────────
-                Container(
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(12),
+                    ],
                   ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      children: [
-                        _statTile(context,
-                            icon: Icons.battery_charging_full,
-                            iconColor: Colors.green,
-                            value:
-                                '${request.requestedEnergy.toStringAsFixed(1)} kWh',
-                            label: 'Requested'),
-                        _vDivider(cs),
-                        _statTile(context,
-                            icon: Icons.bolt,
-                            iconColor: Colors.amber[700]!,
-                            value: request.offeredPricePerKwh != null
-                                ? 'R${request.offeredPricePerKwh!.toStringAsFixed(2)}'
-                                : 'Listed',
-                            label: 'per kWh'),
-                        _vDivider(cs),
-                        _statTile(context,
-                            icon: Icons.receipt_long,
-                            iconColor: cs.primary,
-                            value: total != null
-                                ? 'R${total.toStringAsFixed(2)}'
-                                : '—',
-                            label: 'Total'),
-                      ],
-                    ),
-                  ),
-                ),
 
-                // ── Message ───────────────────────────────────────────────
-                if (request.message?.isNotEmpty == true) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
+                  // ── Expanded content ───────────────────────────────────
+                  SizeTransition(
+                    sizeFactor: _expandAnim,
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.chat_bubble_outline,
-                            size: 14,
-                            color: cs.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            request.message!,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: cs.onSurface.withValues(alpha: 0.7)),
+                        const SizedBox(height: 12),
+
+                        // Stats row
+                        Container(
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                _statTile(context,
+                                    icon: Icons.battery_charging_full,
+                                    iconColor: Colors.green,
+                                    value:
+                                        '${widget.request.requestedEnergy.toStringAsFixed(1)} kWh',
+                                    label: 'Requested'),
+                                _vDivider(cs),
+                                _statTile(context,
+                                    icon: Icons.bolt,
+                                    iconColor: Colors.amber[700]!,
+                                    value:
+                                        widget.request.offeredPricePerKwh !=
+                                                null
+                                            ? 'R${widget.request.offeredPricePerKwh!.toStringAsFixed(2)}'
+                                            : 'Listed',
+                                    label: 'per kWh'),
+                                _vDivider(cs),
+                                _statTile(context,
+                                    icon: Icons.receipt_long,
+                                    iconColor: cs.primary,
+                                    value: total != null
+                                        ? 'R${total.toStringAsFixed(2)}'
+                                        : '—',
+                                    label: 'Total'),
+                              ],
+                            ),
                           ),
                         ),
+
+                        // Message
+                        if (widget.request.message?.isNotEmpty == true) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.chat_bubble_outline,
+                                    size: 14, color: cs.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    widget.request.message!,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: cs.onSurface
+                                            .withValues(alpha: 0.7)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Timestamp
+                        const SizedBox(height: 8),
+                        Text(
+                          'Requested ${_formatTimestamp(widget.request.createdAt)}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color:
+                                  cs.onSurface.withValues(alpha: 0.4)),
+                        ),
+
+                        // ── Accept / Reject ────────────────────────────
+                        if (widget.isReceived &&
+                            widget.request.status == 'pending') ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              if (widget.onReject != null)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: widget.onReject,
+                                    icon: const Icon(Icons.close,
+                                        size: 16),
+                                    label: const Text('Reject'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(
+                                          color: Colors.red),
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 11),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                              if (widget.onReject != null &&
+                                  widget.onAccept != null)
+                                const SizedBox(width: 10),
+                              if (widget.onAccept != null)
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: widget.onAccept,
+                                    icon: const Icon(Icons.check,
+                                        size: 16),
+                                    label: const Text('Accept'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 11),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+
+                        // ── Cancel ─────────────────────────────────────
+                        if (!widget.isReceived &&
+                            widget.request.status == 'pending' &&
+                            widget.onCancel != null) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: widget.onCancel,
+                              icon: const Icon(Icons.close, size: 16),
+                              label: const Text('Cancel Request'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side:
+                                    const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 11),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // ── Accepted actions ───────────────────────────
+                        if (widget.request.status == 'accepted') ...[
+                          if (_hasLocation() &&
+                              widget.onShowOnMap != null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: widget.onShowOnMap,
+                                    icon: const Icon(
+                                        Icons.map_outlined,
+                                        size: 16),
+                                    label: const Text('View on Map'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: cs.primary,
+                                      side: BorderSide(
+                                          color: cs.primary
+                                              .withValues(alpha: 0.6)),
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 11),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: widget.onNavigate,
+                                    icon: const Icon(
+                                        Icons.navigation_rounded,
+                                        size: 16),
+                                    label: const Text('Navigate'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 11),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          if (!widget.isReceived &&
+                              widget.onPayWithMatic != null) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: widget.onPayWithMatic,
+                                icon: const Icon(Icons.bolt_rounded,
+                                    size: 18),
+                                label: const Text('Pay with POL',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),
                 ],
-
-                // ── Timestamp ─────────────────────────────────────────────
-                const SizedBox(height: 8),
-                Text(
-                  'Requested ${_formatTimestamp(request.createdAt)}',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.4)),
-                ),
-
-                // ── Accept / Reject (received pending) ────────────────────
-                if (isReceived && request.status == 'pending') ...[
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      if (onReject != null)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: onReject,
-                            icon: const Icon(Icons.close, size: 16),
-                            label: const Text('Reject'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      if (onReject != null && onAccept != null)
-                        const SizedBox(width: 10),
-                      if (onAccept != null)
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: onAccept,
-                            icon: const Icon(Icons.check, size: 16),
-                            label: const Text('Accept'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              elevation: 0,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-
-                // ── Cancel (sent pending) ─────────────────────────────────
-                if (!isReceived &&
-                    request.status == 'pending' &&
-                    onCancel != null) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onCancel,
-                      icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Cancel Request'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ),
-                ],
-
-                // ── View on Map + Navigate (accepted with location) ───────
-                if (request.status == 'accepted' &&
-                    _hasLocation() &&
-                    onShowOnMap != null) ...[
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onShowOnMap,
-                          icon: const Icon(Icons.map_outlined, size: 16),
-                          label: const Text('View on Map'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: cs.primary,
-                            side: BorderSide(
-                                color: cs.primary.withValues(alpha: 0.6)),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: onNavigate,
-                          icon: const Icon(Icons.navigation_rounded,
-                              size: 16),
-                          label: const Text('Navigate'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -344,26 +479,24 @@ class RequestCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 16, color: iconColor),
             const SizedBox(height: 4),
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
+            Text(value,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 1),
-            Text(
-              label,
-              style: TextStyle(
-                  fontSize: 10,
-                  color: cs.onSurface.withValues(alpha: 0.45)),
-            ),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurface.withValues(alpha: 0.45))),
           ],
         ),
       ),

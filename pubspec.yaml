@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   shared_preferences: ^2.2.1
   geolocator: ^10.1.0
-  flutter_map: ^6.1.1
+  flutter_map: ^8.1.1    # was ^6.1.1
   latlong2: ^0.9.0
   http: ^1.1.0
   provider: ^6.1.1
@@ -31,8 +31,22 @@ dependencies:
   #location: ^7.0.0  # Add this for location services
   dio: ^5.4.0  # Add this for HTTP requests
   url_launcher: ^6.2.2  
-  #
-
+ # ── Blockchain (new) ──────────────────────────────────────────────────────
+  # Ethereum/Polygon interaction — send signed transactions, call contracts
+  web3dart: ^2.7.3
+ 
+  # Encrypted on-device key storage (Android Keystore / iOS Secure Enclave)
+  flutter_secure_storage: ^9.2.2
+ 
+  # BIP39 mnemonic generation and seed derivation
+  bip39: ^1.0.6
+ 
+  # HD key derivation (BIP32 / BIP44)
+  ed25519_hd_key: ^2.2.0
+ 
+  # QR code display (for wallet address sharing / receiving MATIC)
+  qr_flutter: ^4.1.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

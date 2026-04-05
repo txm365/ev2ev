@@ -444,19 +444,22 @@ class BluetoothProvider with ChangeNotifier {
     _userRequestedDisconnect = true;
     _lastDisconnectedTime = DateTime.now();
     _autoReconnectTimer?.cancel();
+    _dataStreamingTimer?.cancel();
+    _dataStreamingTimer = null;
     _reconnectionAttempts = 0;
 
-    debugPrint('User requested disconnect...');
+    debugPrint('🔵 User requested disconnect...');
 
     try {
+      // ── Step 1: Cancel all data subscriptions first ──────────────────────
       for (var subscription in _dataSubscriptions.values) {
         await subscription.cancel();
       }
       _dataSubscriptions.clear();
 
-      _connectionSubscription?.cancel();
-      _connectionSubscription = null;
-
+      // ── Step 2: Disable all notify characteristics ────────────────────────
+      // This tells the ESP32 to stop sending notifications before we drop
+      // the connection — gives the hardware a clean shutdown signal.
       if (_connectedDevice != null && _services.isNotEmpty) {
         for (var service in _services) {
           for (var characteristic in service.characteristics) {
@@ -464,27 +467,69 @@ class BluetoothProvider with ChangeNotifier {
               try {
                 await characteristic.setNotifyValue(false);
                 debugPrint(
-                    'Disabled notifications for ${characteristic.uuid}');
+                    '🔕 Disabled notify: ${characteristic.uuid}');
               } catch (e) {
                 debugPrint(
-                    'Error disabling notifications for ${characteristic.uuid}: $e');
+                    '⚠️ Could not disable notify ${characteristic.uuid}: $e');
               }
             }
           }
         }
       }
 
+      // ── Step 3: Stop any active scan ──────────────────────────────────────
+      if (_isScanning) {
+        await FlutterBluePlus.stopScan();
+        _isScanning = false;
+      }
+
+      // ── Step 4: Disconnect the primary device and wait for confirmation ───
+      // Keep _connectionSubscription alive here so the BLE stack can
+      // propagate the disconnected state event to the ESP32 radio layer.
+      // Cancelling it before disconnect() leaves the ESP32 thinking it's
+      // still connected — it stops advertising and won't show in scans.
       if (_connectedDevice != null && _connectedDevice!.isConnected) {
         debugPrint(
-            'Disconnecting from ${_connectedDevice!.platformName}...');
+            '🔵 Disconnecting from ${_connectedDevice!.platformName}...');
         await _connectedDevice!.disconnect();
-        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Wait for the disconnected state to propagate (up to 3 seconds)
+        int waited = 0;
+        while (_connectedDevice != null &&
+            _connectedDevice!.isConnected &&
+            waited < 30) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          waited++;
+        }
+        debugPrint(
+            '🔵 Device disconnected after ${waited * 100}ms');
       }
+
+      // ── Step 5: Safety net — disconnect any other lingering BLE devices ───
+      // Catches edge cases where flutter_blue_plus tracks devices separately
+      // from our _connectedDevice reference.
+      for (final device in FlutterBluePlus.connectedDevices) {
+        try {
+          if (device.isConnected) {
+            debugPrint(
+                '🔵 Safety disconnect: ${device.platformName}');
+            await device.disconnect();
+            await Future.delayed(const Duration(milliseconds: 300));
+          }
+        } catch (e) {
+          debugPrint('⚠️ Safety disconnect error: $e');
+        }
+      }
+
+      // ── Step 6: Now safe to cancel the connection listener ────────────────
+      _connectionSubscription?.cancel();
+      _connectionSubscription = null;
+
     } catch (e) {
-      debugPrint('Error during disconnect: $e');
+      debugPrint('❌ Error during disconnect: $e');
     } finally {
       _cleanupConnection();
-      debugPrint('Disconnect complete');
+      debugPrint('✅ Disconnect complete — device should now be visible in scans');
     }
   }
 
@@ -537,6 +582,12 @@ class BluetoothProvider with ChangeNotifier {
       subscription.cancel();
     }
     _dataSubscriptions.clear();
+
+    // Cancel the streaming timer so it cannot flip _isDataStreaming
+    // back to true after disconnect using a stale _lastDataUpdate timestamp.
+    _dataStreamingTimer?.cancel();
+    _dataStreamingTimer = null;
+    _lastDataUpdate = null; // clear timestamp so timer cannot reactivate streaming
 
     _connectedDevice = null;
     _services.clear();

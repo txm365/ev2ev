@@ -8,6 +8,7 @@ import 'providers/bluetooth_provider.dart';
 import 'providers/map_provider.dart';
 import 'providers/marketplace_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/blockchain_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -30,11 +31,11 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        // ignore: prefer_const_constructors
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
         ChangeNotifierProvider(create: (_) => MapProvider()),
         ChangeNotifierProvider(create: (_) => MarketplaceProvider()),
+        ChangeNotifierProvider(create: (_) => BlockchainProvider()),
       ],
       child: const MyApp(),
     ),
@@ -53,11 +54,9 @@ class MyApp extends StatelessWidget {
           title: 'EV2EV Energy Trading',
           theme: AppThemes.lightTheme,
           darkTheme: AppThemes.darkTheme,
-
-          // Controlled by ThemeProvider toggle — NOT the system setting
           themeMode: themeProvider.themeMode,
 
-          // Lock font scale to 1.0 — ignores phone accessibility font size
+          // Lock font scale — ignores phone accessibility font size
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
@@ -67,7 +66,7 @@ class MyApp extends StatelessWidget {
             );
           },
 
-          home: const SplashScreen(), // always show splash on cold start
+          home: const SplashScreen(),
           routes: {
             '/main': (context) => MainScreen(key: mainScreenKey),
             '/login': (context) => const LoginScreen(),
@@ -90,24 +89,17 @@ class AuthWrapper extends StatefulWidget {
 class AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
-    // AuthWrapper handles post-login/logout state changes from Supabase.
-    // Initial routing is always done by SplashScreen.
     return StreamBuilder<AuthState>(
       stream: supabase.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           final authState = snapshot.data!;
-
           if (authState.session != null) {
-            // Session active — go to main (handles login from LoginScreen)
             return MainScreen(key: mainScreenKey);
           } else {
-            // Session ended (logout) — go to login
             return const LoginScreen();
           }
         }
-
-        // Stream not yet emitted — show splash while waiting
         return const SplashScreen();
       },
     );

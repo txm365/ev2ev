@@ -300,7 +300,7 @@ class _CreateListingDialogState extends State<CreateListingDialog> {
                                         .withValues(alpha: 0.4)),
                               )
                             else
-                              Text('Set',
+                              const Text('Set',
                                   style: TextStyle(
                                       fontSize: 13,
                                       color: _green,

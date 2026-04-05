@@ -1067,12 +1067,13 @@ class MapPageState extends State<MapPage> {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.ev_dashboard',
-                    // Silently swallow tile load failures (network timeout,
-                    // cancelled connection etc.) — show blank tile instead
-                    errorTileCallback: (tile, error, stackTrace) {
-                      // suppress — avoids flooding logs on slow networks
-                    },
+                    fallbackUrl:
+                        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.ev2ev',
+                    maxNativeZoom: 18,
+                    // when the user pans away — reduces wasted bandwidth and
+                    // eliminates the "Connection attempt cancelled" log spam
+                    errorTileCallback: (tile, error, stackTrace) {},
                   ),
                   PolylineLayer(
                     polylines: [

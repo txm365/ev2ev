@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/marketplace_provider.dart';
 import '../providers/bluetooth_provider.dart';
+import '../providers/blockchain_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,7 +25,6 @@ class SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Pulse ring around the icon
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -34,7 +34,6 @@ class SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Slow rotation for the outer decorative ring
     _rotateController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -56,10 +55,12 @@ class SplashScreenState extends State<SplashScreen>
 
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
-      // Initialize providers before navigating so dashboard data is ready
       if (mounted) {
+        // Initialize all providers before navigating
         context.read<MarketplaceProvider>().initialize();
         context.read<BluetoothProvider>().initialize();
+        // Blockchain: generate/load wallet and sync address to Supabase
+        context.read<BlockchainProvider>().initialize();
       }
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/main');
@@ -76,22 +77,21 @@ class SplashScreenState extends State<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        // Deep dark gradient — professional, modern
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0D1B2A), // deep navy
-              Color(0xFF1B2838), // dark steel
-              Color(0xFF0D2137), // dark teal-navy
+              Color(0xFF0D1B2A),
+              Color(0xFF1B2838),
+              Color(0xFF0D2137),
             ],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // ── Background decorative circles ────────────────────────────
+            // Background decorative circles
             Positioned(
               top: -size.width * 0.3,
               right: -size.width * 0.2,
@@ -123,19 +123,18 @@ class SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            // ── Main content ─────────────────────────────────────────────
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ── Animated logo area ──────────────────────────────────
+                  // Animated logo
                   SizedBox(
                     width: 180,
                     height: 180,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Outer slowly-rotating dashed ring
+                        // Outer rotating dashed ring
                         AnimatedBuilder(
                           animation: _rotateController,
                           builder: (context, child) {
@@ -147,7 +146,8 @@ class SplashScreenState extends State<SplashScreen>
                           child: CustomPaint(
                             size: const Size(170, 170),
                             painter: _DashedCirclePainter(
-                              color: const Color(0xFF4CAF50).withValues(alpha: 0.35),
+                              color: const Color(0xFF4CAF50)
+                                  .withValues(alpha: 0.35),
                               dashCount: 24,
                             ),
                           ),
@@ -168,7 +168,8 @@ class SplashScreenState extends State<SplashScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF81C784).withValues(alpha: 0.4),
+                                color: const Color(0xFF81C784)
+                                    .withValues(alpha: 0.4),
                                 width: 1.5,
                               ),
                             ),
@@ -191,7 +192,7 @@ class SplashScreenState extends State<SplashScreen>
                           ),
                         ),
 
-                        // Electric bolt icon
+                        // Bolt icon
                         const Icon(
                           Icons.electric_bolt,
                           size: 64,
@@ -208,13 +209,10 @@ class SplashScreenState extends State<SplashScreen>
                             ),
                       ],
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 500.ms),
+                  ).animate().fadeIn(duration: 500.ms),
 
                   const SizedBox(height: 40),
 
-                  // ── Brand name ──────────────────────────────────────────
                   const Text(
                     'EV2EV',
                     style: TextStyle(
@@ -236,7 +234,6 @@ class SplashScreenState extends State<SplashScreen>
 
                   const SizedBox(height: 10),
 
-                  // ── Tagline ─────────────────────────────────────────────
                   const Text(
                     'Peer-to-Peer Energy Trading',
                     style: TextStyle(
@@ -258,7 +255,6 @@ class SplashScreenState extends State<SplashScreen>
 
                   const SizedBox(height: 80),
 
-                  // ── Progress bar ────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 60),
                     child: Column(
@@ -285,9 +281,7 @@ class SplashScreenState extends State<SplashScreen>
                             color: Color(0xFF546E7A),
                             letterSpacing: 1.5,
                           ),
-                        )
-                            .animate()
-                            .fadeIn(duration: 400.ms, delay: 1400.ms),
+                        ).animate().fadeIn(duration: 400.ms, delay: 1400.ms),
                       ],
                     ),
                   ),
@@ -295,7 +289,6 @@ class SplashScreenState extends State<SplashScreen>
               ),
             ),
 
-            // ── Version tag bottom ───────────────────────────────────────
             Positioned(
               bottom: 32,
               left: 0,
@@ -317,7 +310,6 @@ class SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ── Custom painter for the dashed outer ring ───────────────────────────────
 class _DashedCirclePainter extends CustomPainter {
   final Color color;
   final int dashCount;
@@ -335,7 +327,7 @@ class _DashedCirclePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
     final dashAngle = (2 * pi) / dashCount;
-    const gapFraction = 0.4; // 40% gap between dashes
+    const gapFraction = 0.4;
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle = i * dashAngle;

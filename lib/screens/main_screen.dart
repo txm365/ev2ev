@@ -7,6 +7,7 @@ import './dashboard_page.dart';
 import './marketplace_screen.dart';
 import './map_page.dart';
 import './profile_screen.dart';
+import './wallet_screen.dart';
 import '../providers/marketplace_provider.dart' as mp;
 import '../providers/bluetooth_provider.dart' as bt;
 
@@ -22,7 +23,7 @@ class MainScreenState extends State<MainScreen>
   int _selectedIndex = 0;
   late PageController _pageController;
 
-  // ── Cache provider references so dispose() never touches context ──
+  // Cache provider references so dispose() never touches context
   bt.BluetoothProvider? _bluetoothProvider;
   mp.MarketplaceProvider? _marketplaceProvider;
 
@@ -32,27 +33,33 @@ class MainScreenState extends State<MainScreen>
     const DashboardPage(),
     const MarketplaceScreen(),
     const MapPage(),
+    const WalletScreen(),
     const ProfileScreen(),
   ];
 
   static const List<BottomNavigationBarItem> _navItems = [
     BottomNavigationBarItem(
-      icon: Icon(Icons.dashboard),
+      icon: Icon(Icons.dashboard_outlined),
       activeIcon: Icon(Icons.dashboard),
       label: 'Dashboard',
     ),
     BottomNavigationBarItem(
-      icon: Icon(Icons.store),
+      icon: Icon(Icons.store_outlined),
       activeIcon: Icon(Icons.store),
       label: 'Marketplace',
     ),
     BottomNavigationBarItem(
-      icon: Icon(Icons.map),
+      icon: Icon(Icons.map_outlined),
       activeIcon: Icon(Icons.map),
       label: 'Map',
     ),
     BottomNavigationBarItem(
-      icon: Icon(Icons.person),
+      icon: Icon(Icons.account_balance_wallet_outlined),
+      activeIcon: Icon(Icons.account_balance_wallet),
+      label: 'Wallet',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline),
       activeIcon: Icon(Icons.person),
       label: 'Profile',
     ),
@@ -91,43 +98,20 @@ class MainScreenState extends State<MainScreen>
   }
 
   void _showConnectionSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                'Connected Successfully',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Your EV is now connected and ready for energy trading. '
-          'You can view real-time data on the Dashboard.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _onItemTapped(0);
-            },
-            child: const Text('View Dashboard'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+    // Overlay toast — floats above everything, not tied to any Scaffold
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
+      builder: (ctx) => _ConnectionToast(
+        onDashboard: () => _onItemTapped(0),
       ),
     );
+    overlay.insert(entry);
+    // Auto-remove after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (entry.mounted) entry.remove();
+    });
   }
 
-  // ── dispose() only uses cached references — context is never touched ──
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -144,7 +128,7 @@ class MainScreenState extends State<MainScreen>
     }
   }
 
-  /// Public method so child screens can switch tabs without importing main_screen.dart
+  /// Public — lets child screens switch tabs via mainScreenKey
   void navigateToTab(int index) => _onItemTapped(index);
 
   void _onItemTapped(int index) {
@@ -184,6 +168,7 @@ class MainScreenState extends State<MainScreen>
               final index = entry.key;
               final item = entry.value;
 
+              // Badge on Marketplace tab for pending received requests
               if (index == 1 && pendingRequestsCount > 0) {
                 return BottomNavigationBarItem(
                   icon: badges.Badge(
@@ -215,6 +200,111 @@ class MainScreenState extends State<MainScreen>
             onTap: _onItemTapped,
           );
         },
+      ),
+    );
+  }
+}
+
+// ── Overlay toast widget ───────────────────────────────────────────────────
+// Renders directly on the Overlay stack so it appears above every tab/page
+// without going through ScaffoldMessenger.
+class _ConnectionToast extends StatefulWidget {
+  final VoidCallback onDashboard;
+  const _ConnectionToast({required this.onDashboard});
+
+  @override
+  State<_ConnectionToast> createState() => _ConnectionToastState();
+}
+
+class _ConnectionToastState extends State<_ConnectionToast>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 300));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -0.4),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPad + 12,
+      left: 16,
+      right: 16,
+      child: FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _slide,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E7D32),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bluetooth_connected,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'EV connected successfully',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: widget.onDashboard,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Dashboard',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

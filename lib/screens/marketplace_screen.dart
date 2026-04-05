@@ -14,6 +14,8 @@ import '../models/energy_listing.dart';
 import '../models/energy_request.dart';
 import '../main.dart' show mainScreenKey;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/payment_bottom_sheet.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -154,54 +156,35 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
 
     return Column(
       children: [
-        // ── Search and Filter Bar ─────────────────────────────────────────
+        // ── Filter chips only (search bar removed) ─────────────────────────
         Container(
-          padding: const EdgeInsets.all(16),
-          // FIX: was Colors.grey[100] (white-ish, stays white in dark mode)
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           color: cs.surfaceContainerHighest,
-          child: Column(
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search by location, vehicle type...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  // FIX: was Colors.white (hardcoded white box in dark mode)
-                  fillColor: cs.surface,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  'Distance: ${provider.maxDistance.toInt()}km',
+                  Icons.location_on,
+                  () => _showDistanceFilter(context, provider),
                 ),
-                onChanged: (value) => provider.updateSearchQuery(value),
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      'Distance: ${provider.maxDistance.toInt()}km',
-                      Icons.location_on,
-                      () => _showDistanceFilter(context, provider),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      'Price: R${provider.maxPrice.toStringAsFixed(1)}/kWh',
-                      Icons.attach_money,
-                      () => _showPriceFilter(context, provider),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      provider.selectedVehicleType == 'all'
-                          ? 'All Vehicles'
-                          : provider.selectedVehicleType,
-                      Icons.electric_car,
-                      () => _showVehicleTypeFilter(context, provider),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  'Price: R${provider.maxPrice.toStringAsFixed(1)}/kWh',
+                  Icons.attach_money,
+                  () => _showPriceFilter(context, provider),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  provider.selectedVehicleType == 'all'
+                      ? 'All Vehicles'
+                      : provider.selectedVehicleType,
+                  Icons.electric_car,
+                  () => _showVehicleTypeFilter(context, provider),
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -220,7 +203,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                         padding: EdgeInsets.zero,
                         child: ListingCard(
                           listing: listing,
-                          onTap: () => _showEnergyRequestDialog(
+                          onRequestTap: () => _showEnergyRequestDialog(
                               context, listing, provider),
                         ),
                       );
@@ -564,6 +547,7 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                             request.buyerName ?? 'Buyer')
                         : null,
                   ),
+                  // isReceived: true means the seller sees this — no Pay button needed
                 ))
           else
             Card(
@@ -828,6 +812,9 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
                     onCancel: request.status == 'pending'
                         ? () => _handleCancelRequest(
                             context, provider, request.id)
+                        : null,
+                    onPayWithMatic: request.status == 'accepted'
+                        ? () => _handlePayWithMatic(context, request)
                         : null,
                   ),
                 );
@@ -1275,6 +1262,60 @@ class MarketplaceScreenState extends State<MarketplaceScreen>
         ],
       ),
     );
+  }
+
+  // ── Payment: fetch seller wallet address then show PaymentBottomSheet ───────
+
+  Future<void> _handlePayWithMatic(
+      BuildContext context, EnergyRequest request) async {
+    final sellerWallet = await _fetchSellerWalletAddress(request);
+
+    if (!context.mounted) return;
+
+    if (sellerWallet == null || sellerWallet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Seller has not set up a wallet yet. Ask them to open the Wallet tab.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    await PaymentBottomSheet.show(
+      context,
+      request: request,
+      sellerWalletAddress: sellerWallet,
+    );
+  }
+
+  /// Looks up the seller's wallet address from Supabase user_profiles.
+  /// Returns null if the seller has no wallet configured.
+  Future<String?> _fetchSellerWalletAddress(EnergyRequest request) async {
+    try {
+      // seller_id comes from the listing — resolve via listing_id on the request
+      final listingResponse = await Supabase.instance.client
+          .from('energy_listings')
+          .select('seller_id')
+          .eq('id', request.listingId)
+          .maybeSingle();
+
+      if (listingResponse == null) return null;
+      final sellerId = listingResponse['seller_id'] as String?;
+      if (sellerId == null) return null;
+
+      final profileResponse = await Supabase.instance.client
+          .from('user_profiles')
+          .select('wallet_address')
+          .eq('user_id', sellerId)
+          .maybeSingle();
+
+      return profileResponse?['wallet_address'] as String?;
+    } catch (e) {
+      debugPrint('❌ Could not fetch seller wallet: $e');
+      return null;
+    }
   }
 
   // ==========================================================================
