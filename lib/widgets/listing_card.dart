@@ -1,6 +1,8 @@
 // lib/widgets/listing_card.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/energy_listing.dart';
+import '../providers/blockchain_provider.dart';
 
 class ListingCard extends StatefulWidget {
   final EnergyListing listing;
@@ -44,6 +46,7 @@ class _ListingCardState extends State<ListingCard>
   }
 
   // ── Vehicle helpers ────────────────────────────────────────────────────────
+
   Color _vehicleColor() {
     final v = widget.listing.vehicleType.toLowerCase();
     if (v.contains('bus')) return const Color(0xFF7B1FA2);
@@ -177,26 +180,39 @@ class _ListingCardState extends State<ListingCard>
                       ),
 
                       // Price + distance + chevron
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'R${widget.listing.pricePerKwh.toStringAsFixed(2)}/kWh',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: color),
-                          ),
-                          if (widget.listing.distance != null)
+                      Builder(builder: (bCtx) {
+                        final rate = bCtx
+                            .watch<BlockchainProvider>()
+                            .polToZarRate;
+                        final polStr = rate != null && rate > 0
+                            ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} POL'
+                            : '';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
                             Text(
-                              '${widget.listing.distance!.toStringAsFixed(1)} km',
+                              'R${widget.listing.pricePerKwh.toStringAsFixed(2)}/kWh',
                               style: TextStyle(
-                                  fontSize: 11,
-                                  color: cs.onSurface
-                                      .withValues(alpha: 0.45)),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: color),
                             ),
-                        ],
-                      ),
+                            if (polStr.isNotEmpty)
+                              Text(polStr,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: cs.onSurface.withValues(alpha: 0.4))),
+                              if (widget.listing.distance != null)
+                              Text(
+                                '${widget.listing.distance!.toStringAsFixed(1)} km',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurface
+                                        .withValues(alpha: 0.45)),
+                              ),
+                          ],
+                        );
+                      }),
 
                       const SizedBox(width: 6),
 
@@ -230,12 +246,20 @@ class _ListingCardState extends State<ListingCard>
                           child: IntrinsicHeight(
                             child: Row(
                               children: [
-                                _statTile(context,
-                                    icon: Icons.bolt,
-                                    iconColor: Colors.amber[700]!,
-                                    value:
-                                        'R${widget.listing.pricePerKwh.toStringAsFixed(2)}',
-                                    label: 'per kWh'),
+                                Builder(builder: (bCtx) {
+                                  final rate = bCtx
+                                      .watch<BlockchainProvider>()
+                                      .polToZarRate;
+                                  final pol = rate != null && rate > 0
+                                      ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} POL'
+                                      : null;
+                                  return _statTile(bCtx,
+                                      icon: Icons.bolt,
+                                      iconColor: Colors.amber[700]!,
+                                      value: 'R${widget.listing.pricePerKwh.toStringAsFixed(2)}',
+                                      sublabel: pol,
+                                      label: 'per kWh');
+                                }),
                                 _vDivider(cs),
                                 _statTile(context,
                                     icon: Icons.battery_charging_full,
@@ -323,6 +347,7 @@ class _ListingCardState extends State<ListingCard>
       required Color iconColor,
       required String value,
       required String label,
+      String? sublabel,
       bool compact = false}) {
     final cs = Theme.of(context).colorScheme;
     return Expanded(
@@ -339,6 +364,12 @@ class _ListingCardState extends State<ListingCard>
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 13)),
+            if (sublabel != null)
+              Text(sublabel,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 9,
+                      color: cs.onSurface.withValues(alpha: 0.4))),
             const SizedBox(height: 1),
             Text(label,
                 style: TextStyle(

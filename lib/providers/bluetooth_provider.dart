@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BluetoothProvider with ChangeNotifier {
@@ -32,10 +31,9 @@ class BluetoothProvider with ChangeNotifier {
   StreamSubscription<BluetoothAdapterState>? _adapterStateSubscription;
 
   // Auto-connection
-  bool _autoConnectionEnabled = true;
+  final bool _autoConnectionEnabled = true;
   Timer? _autoReconnectTimer;
   int _reconnectionAttempts = 0;
-  static const int _maxReconnectionAttempts = 5;
   static const Duration _reconnectInterval = Duration(seconds: 10);
 
   // Data streaming detection
@@ -613,18 +611,25 @@ class BluetoothProvider with ChangeNotifier {
     if (!_autoConnectionEnabled ||
         _userRequestedDisconnect ||
         _isConnected ||
-        _isConnecting) {  // don't schedule while already connecting
+        _isConnecting) {
       return;
     }
 
     _autoReconnectTimer?.cancel();
-    _autoReconnectTimer = Timer(_reconnectInterval, () {
-      if (_reconnectionAttempts < _maxReconnectionAttempts) {
-        attemptAutoReconnect();
-      } else {
-        debugPrint('Max reconnection attempts reached');
-        _reconnectionAttempts = 0;
-      }
+
+    // Exponential backoff: 10s → 20s → 40s → 60s (cap) — keeps trying
+    // indefinitely so coming back into range always triggers reconnection,
+    // regardless of how long the device was out of range.
+    final backoffSeconds = (_reconnectInterval.inSeconds *
+            (1 << _reconnectionAttempts.clamp(0, 3)))
+        .clamp(10, 60);
+    final interval = Duration(seconds: backoffSeconds);
+
+    debugPrint('⏱️ Scheduling reconnect in ${backoffSeconds}s '
+        '(attempt ${_reconnectionAttempts + 1})');
+
+    _autoReconnectTimer = Timer(interval, () {
+      attemptAutoReconnect();
     });
   }
 
@@ -643,8 +648,7 @@ class BluetoothProvider with ChangeNotifier {
 
     try {
       _reconnectionAttempts++;
-      debugPrint(
-          'Auto-reconnection attempt $_reconnectionAttempts to ${_lastConnectedDevice!.platformName}');
+      debugPrint('Auto-reconnect attempt $_reconnectionAttempts to ${_lastConnectedDevice!.platformName}');
 
       await _lastConnectedDevice!.connect(
           autoConnect: false, timeout: const Duration(seconds: 10));
@@ -655,21 +659,15 @@ class BluetoothProvider with ChangeNotifier {
         } catch (e) {
           debugPrint('MTU request failed: $e');
         }
-
         await _setupConnection(_lastConnectedDevice!);
         _reconnectionAttempts = 0;
         debugPrint('Auto-reconnection successful!');
       }
     } catch (e) {
-      debugPrint(
-          'Auto-reconnection attempt $_reconnectionAttempts failed: $e');
-      if (_reconnectionAttempts < _maxReconnectionAttempts) {
-        _scheduleAutoReconnect();
-      } else {
-        _reconnectionAttempts = 0;
-        debugPrint(
-            'Auto-reconnection failed after $_maxReconnectionAttempts attempts');
-      }
+      debugPrint('Auto-reconnect attempt $_reconnectionAttempts failed: $e');
+      // Keep scheduling — device may be temporarily out of range.
+      // Exponential backoff in _scheduleAutoReconnect prevents flooding.
+      _scheduleAutoReconnect();
     }
   }
 
@@ -711,58 +709,10 @@ class BluetoothProvider with ChangeNotifier {
   // UTILITIES
   // ─────────────────────────────────────────────────────────────────────────
 
-  void setAutoConnectionEnabled(bool enabled) {
-    _autoConnectionEnabled = enabled;
-    if (!enabled) {
-      _autoReconnectTimer?.cancel();
-      _reconnectionAttempts = 0;
-    }
-    notifyListeners();
-  }
 
   void clearError() {
     _errorMessage = null;
     notifyListeners();
-  }
-
-  void resetUserDisconnectFlag() {
-    _userRequestedDisconnect = false;
-  }
-
-  bool shouldAutoRouteToDashboard() {
-    return _isConnected &&
-        _isDataStreaming &&
-        (deviceData['brand'] != '' ||
-            deviceData['v'] > 0 ||
-            deviceData['bl'] > 0);
-  }
-
-  Map<String, dynamic> getConnectionStats() {
-    return {
-      'isConnected': _isConnected,
-      'isDataStreaming': _isDataStreaming,
-      'reconnectionAttempts': _reconnectionAttempts,
-      'lastDisconnectedTime': _lastDisconnectedTime,
-      'autoConnectionEnabled': _autoConnectionEnabled,
-      'connectedDeviceName': _connectedDevice?.platformName ?? 'None',
-      'lastDataUpdate': _lastDataUpdate,
-    };
-  }
-
-  Future<Position?> getCurrentPosition() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      try {
-        return await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 10),
-        );
-      } catch (e) {
-        debugPrint('Failed to get current position: $e');
-        return null;
-      }
-    }
-    return null;
   }
 
   @override

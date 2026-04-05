@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Config for EV2EV
+    - Allows HTTPS to all domains (default Android behaviour)
+    - Explicitly permits cleartext HTTP only to localhost (used by Flutter
+      tooling in debug mode and the OSRM demo server on local network)
+    - All external traffic (Supabase, OSM tiles, OSRM public, Polygon RPC)
+      uses HTTPS so no cleartext exceptions are needed for production
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+    <!-- Flutter debug tooling communicates over localhost HTTP -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

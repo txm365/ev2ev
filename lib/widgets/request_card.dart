@@ -1,7 +1,9 @@
 // lib/widgets/request_card.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/energy_request.dart';
+import '../providers/blockchain_provider.dart';
 
 class RequestCard extends StatefulWidget {
   final EnergyRequest request;
@@ -237,23 +239,43 @@ class _RequestCardState extends State<RequestCard>
                                         '${widget.request.requestedEnergy.toStringAsFixed(1)} kWh',
                                     label: 'Requested'),
                                 _vDivider(cs),
-                                _statTile(context,
-                                    icon: Icons.bolt,
-                                    iconColor: Colors.amber[700]!,
-                                    value:
-                                        widget.request.offeredPricePerKwh !=
-                                                null
-                                            ? 'R${widget.request.offeredPricePerKwh!.toStringAsFixed(2)}'
-                                            : 'Listed',
-                                    label: 'per kWh'),
+                                Builder(builder: (bCtx) {
+                                  final rate = bCtx
+                                      .watch<BlockchainProvider>()
+                                      .polToZarRate;
+                                  final priceZar =
+                                      widget.request.offeredPricePerKwh;
+                                  final polPerKwh = priceZar != null &&
+                                          rate != null && rate > 0
+                                      ? '≈ ${(priceZar / rate).toStringAsFixed(4)} POL'
+                                      : null;
+                                  return _statTile(bCtx,
+                                      icon: Icons.bolt,
+                                      iconColor: Colors.amber[700]!,
+                                      value: priceZar != null
+                                          ? 'R${priceZar.toStringAsFixed(2)}'
+                                          : 'Listed',
+                                      sublabel: polPerKwh,
+                                      label: 'per kWh');
+                                }),
                                 _vDivider(cs),
-                                _statTile(context,
-                                    icon: Icons.receipt_long,
-                                    iconColor: cs.primary,
-                                    value: total != null
-                                        ? 'R${total.toStringAsFixed(2)}'
-                                        : '—',
-                                    label: 'Total'),
+                                Builder(builder: (bCtx) {
+                                  final rate = bCtx
+                                      .watch<BlockchainProvider>()
+                                      .polToZarRate;
+                                  final polTotal = total != null &&
+                                          rate != null && rate > 0
+                                      ? '≈ ${(total / rate).toStringAsFixed(4)} POL'
+                                      : null;
+                                  return _statTile(bCtx,
+                                      icon: Icons.receipt_long,
+                                      iconColor: cs.primary,
+                                      value: total != null
+                                          ? 'R${total.toStringAsFixed(2)}'
+                                          : '—',
+                                      sublabel: polTotal,
+                                      label: 'Total');
+                                }),
                               ],
                             ),
                           ),
@@ -475,7 +497,8 @@ class _RequestCardState extends State<RequestCard>
       {required IconData icon,
       required Color iconColor,
       required String value,
-      required String label}) {
+      required String label,
+      String? sublabel}) {
     final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: Padding(
@@ -492,6 +515,12 @@ class _RequestCardState extends State<RequestCard>
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 13)),
+            if (sublabel != null)
+              Text(sublabel,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 9,
+                      color: cs.onSurface.withValues(alpha: 0.4))),
             const SizedBox(height: 1),
             Text(label,
                 style: TextStyle(

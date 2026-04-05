@@ -60,7 +60,9 @@ class SplashScreenState extends State<SplashScreen>
         context.read<MarketplaceProvider>().initialize();
         context.read<BluetoothProvider>().initialize();
         // Blockchain: generate/load wallet and sync address to Supabase
-        context.read<BlockchainProvider>().initialize();
+        final bp = context.read<BlockchainProvider>();
+        await bp.checkFirstLaunch();
+        if (!bp.isFirstLaunch) bp.initialize();
       }
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/main');

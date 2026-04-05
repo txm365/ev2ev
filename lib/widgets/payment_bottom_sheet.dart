@@ -44,7 +44,8 @@ class PaymentBottomSheet extends StatefulWidget {
 
 class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   // Simplified POL/ZAR conversion for demo — in production use a live price feed
-  static const double _polToZar = 12.50; // 1 POL ≈ R12.50 (update regularly)
+  // Rate sourced live from BlockchainProvider (CoinGecko); fallback if unavailable
+  static const double _polToZarFallback = 12.50;
   static const _green = Color(0xFF2E7D32);
 
   _PayStep _step = _PayStep.preview;
@@ -54,7 +55,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
       (widget.request.offeredPricePerKwh ?? 0) *
       widget.request.requestedEnergy;
 
-  double get _totalPol => _totalZar / _polToZar;
+  // _totalPol is computed in build where bp is available
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +103,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
       case _PayStep.processing:
         return _buildProcessing(cs);
       case _PayStep.success:
-        return _buildSuccess(context, cs);
+        return _buildSuccess(context, bp, cs);
       case _PayStep.failed:
         return _buildFailed(context, bp, cs);
     }
@@ -111,7 +112,9 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   // ── Preview step ───────────────────────────────────────────────────────────
   Widget _buildPreview(
       BuildContext context, BlockchainProvider bp, ColorScheme cs) {
-    final hasEnoughPol = bp.polBalance >= _totalPol;
+    final rate = bp.polToZarRate ?? _polToZarFallback;
+    final totalPol = _totalZar / rate;
+    final hasEnoughPol = bp.polBalance >= totalPol;
 
     return Column(
       key: const ValueKey('preview'),
@@ -165,13 +168,13 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
               const SizedBox(height: 4),
               _summaryRow(
                 'Total (POL)',
-                '${_totalPol.toStringAsFixed(4)} POL',
+                '${totalPol.toStringAsFixed(4)} POL',
                 bold: true,
                 valueColor: _green,
               ),
               const SizedBox(height: 4),
               Text(
-                '≈ at R${_polToZar.toStringAsFixed(2)}/POL',
+                '≈ at R${rate.toStringAsFixed(2)}/POL',
                 style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurface.withValues(alpha: 0.4)),
@@ -301,7 +304,9 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   }
 
   // ── Success step ───────────────────────────────────────────────────────────
-  Widget _buildSuccess(BuildContext context, ColorScheme cs) {
+  Widget _buildSuccess(BuildContext context, BlockchainProvider bp, ColorScheme cs) {
+    final rate = bp.polToZarRate ?? _polToZarFallback;
+    final totalPol = _totalZar / rate;
     return Column(
       key: const ValueKey('success'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -319,7 +324,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
         const SizedBox(height: 8),
         Center(
           child: Text(
-            '${_totalPol.toStringAsFixed(4)} POL locked in smart contract',
+            '${totalPol.toStringAsFixed(4)} POL locked in smart contract',
             style: TextStyle(
                 fontSize: 13, color: cs.onSurface.withValues(alpha: 0.6)),
           ),
@@ -441,11 +446,13 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   Future<void> _submit(BuildContext context, BlockchainProvider bp) async {
     setState(() => _step = _PayStep.processing);
 
+    final rate = bp.polToZarRate ?? _polToZarFallback;
+    final totalPol = _totalZar / rate;
     final tradeId = await bp.depositToEscrow(
       supabaseRequestId: widget.request.id,
       sellerWalletAddress: widget.sellerWalletAddress,
       energyKwh: widget.request.requestedEnergy,
-      totalPol: _totalPol,
+      totalPol: totalPol,
     );
 
     if (!mounted) return;

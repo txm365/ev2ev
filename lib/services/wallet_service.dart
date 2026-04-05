@@ -13,6 +13,7 @@
 //   ed25519_hd_key: ^2.2.0
 //
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart' as http;
@@ -47,6 +48,9 @@ class WalletService {
   static const String _keyMnemonic = 'ev2ev_wallet_mnemonic';
   static const String _keyPrivateKey = 'ev2ev_wallet_private_key';
   static const String _keyAddress = 'ev2ev_wallet_address';
+  // Multi-account storage: JSON list of {address, mnemonic, privateKey, label}
+  static const String _keyAccountList = 'ev2ev_account_list';
+  static const String _keyActiveIndex = 'ev2ev_active_account_index';
 
   // ── Internal state ─────────────────────────────────────────────────────────
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
@@ -65,6 +69,85 @@ class WalletService {
 
   bool get isInitialized => _credentials != null;
 
+  /// Returns true if a wallet has been previously created/imported on this device.
+  /// Does NOT load anything — safe to call before initialize().
+  Future<bool> hasExistingWallet() async {
+    final key = await _storage.read(key: _keyPrivateKey);
+    return key != null && key.isNotEmpty;
+  }
+
+  /// Public entry point for creating a fresh wallet (called on first launch).
+  Future<void> createNewWalletPublic() => _createNewWallet();
+
+  // ── Saved accounts ─────────────────────────────────────────────────────────
+
+  /// Returns all saved accounts as list of maps with keys:
+  /// address, label, isActive
+  Future<List<Map<String, String>>> getSavedAccounts() async {
+    try {
+      final raw = await _storage.read(key: _keyAccountList);
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => Map<String, String>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<int> getActiveIndex() async {
+    final raw = await _storage.read(key: _keyActiveIndex);
+    return int.tryParse(raw ?? '0') ?? 0;
+  }
+
+  /// Save current wallet into the account list (called after create/import).
+  Future<void> _saveCurrentToAccountList({String? label}) async {
+    if (_address == null) return;
+    final accounts = await getSavedAccounts();
+    final address = _address!.hexEip55;
+    // Avoid duplicates
+    final exists = accounts.any((a) => a['address'] == address);
+    if (!exists) {
+      accounts.add({
+        'address': address,
+        'label': label ?? 'Account ${accounts.length + 1}',
+        'mnemonic': await _storage.read(key: _keyMnemonic) ?? '',
+        'privateKey': await _storage.read(key: _keyPrivateKey) ?? '',
+      });
+      await _storage.write(
+          key: _keyAccountList, value: jsonEncode(accounts));
+    }
+    // Set active index
+    final idx = accounts.indexWhere((a) => a['address'] == address);
+    await _storage.write(
+        key: _keyActiveIndex, value: idx.toString());
+  }
+
+  /// Switch the active wallet to a saved account by index.
+  Future<bool> switchToAccount(int index) async {
+    try {
+      final accounts = await getSavedAccounts();
+      if (index < 0 || index >= accounts.length) return false;
+      final account = accounts[index];
+      final privateKey = account['privateKey'] ?? '';
+      if (privateKey.isEmpty) return false;
+      _credentials = EthPrivateKey.fromHex(privateKey);
+      _address = _credentials!.address;
+      // Update active keys so the app loads this account next time
+      await _storage.write(key: _keyPrivateKey, value: privateKey);
+      await _storage.write(
+          key: _keyMnemonic, value: account['mnemonic'] ?? '');
+      await _storage.write(
+          key: _keyAddress, value: _address!.hexEip55);
+      await _storage.write(
+          key: _keyActiveIndex, value: index.toString());
+      debugPrint('🔄 Switched to account $index: ${_address?.hexEip55}');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Account switch failed: $e');
+      return false;
+    }
+  }
+
   // ── Init ───────────────────────────────────────────────────────────────────
 
   /// Call once at app startup (after user logs in).
@@ -76,10 +159,8 @@ class WalletService {
     if (existingKey != null) {
       await _loadExistingWallet(existingKey);
       debugPrint('🔐 Wallet loaded: ${_address?.hexEip55}');
-    } else {
-      await _createNewWallet();
-      debugPrint('🔐 New wallet created: ${_address?.hexEip55}');
     }
+    // No auto-create — caller decides (first launch screen handles creation)
   }
 
   Future<void> _loadExistingWallet(String privateKeyHex) async {
@@ -108,6 +189,7 @@ class WalletService {
     await _storage.write(key: _keyMnemonic, value: mnemonic);
     await _storage.write(key: _keyPrivateKey, value: privateKeyHex);
     await _storage.write(key: _keyAddress, value: _address!.hexEip55);
+    await _saveCurrentToAccountList();
   }
 
   // ── Balance ────────────────────────────────────────────────────────────────
@@ -155,6 +237,7 @@ class WalletService {
       await _storage.write(key: _keyMnemonic, value: mnemonic);
       await _storage.write(key: _keyPrivateKey, value: privateKeyHex);
       await _storage.write(key: _keyAddress, value: _address!.hexEip55);
+      await _saveCurrentToAccountList();
 
       debugPrint('🔐 Wallet restored: ${_address?.hexEip55}');
       return true;

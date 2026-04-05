@@ -4,6 +4,8 @@
 // Exposes clean async methods that the UI calls, handles loading/error state,
 // and syncs trade status back to Supabase so the rest of the app stays updated.
 //
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -134,7 +136,9 @@ class BlockchainProvider with ChangeNotifier {
   String? _errorMessage;
   String? _walletAddress;
   double _polBalance = 0.0;
+  double? _polToZarRate;        // live POL→ZAR rate from CoinGecko
   final List<EscrowTrade> _trades = [];
+  Timer? _balancePollTimer;
 
   DeployedContract? _contract;
 
@@ -144,13 +148,48 @@ class BlockchainProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get walletAddress => _walletAddress;
   double get polBalance => _polBalance;
+  double? get polToZarRate => _polToZarRate;
+
+  // ── Account management ──────────────────────────────────────────────────────
+
+  Future<List<Map<String, String>>> getSavedAccounts() =>
+      _wallet.getSavedAccounts();
+
+  Future<bool> switchAccount(int index) async {
+    final success = await _wallet.switchToAccount(index);
+    if (success) {
+      _walletAddress = _wallet.publicAddress;
+      _polBalance = 0.0;
+      notifyListeners();
+      // Refresh balance for new account
+      await refreshBalance();
+    }
+    return success;
+  }
   List<EscrowTrade> get trades => List.unmodifiable(_trades);
   bool get walletReady => _walletAddress != null;
+
+  bool _isFirstLaunch = false;
+  bool get isFirstLaunch => _isFirstLaunch;
+
+  /// Call this before initialize() to detect first launch without creating a wallet.
+  Future<void> checkFirstLaunch() async {
+    final exists = await _wallet.hasExistingWallet();
+    _isFirstLaunch = !exists;
+    notifyListeners();
+  }
 
   /// Exposed so WalletScreen can call getMnemonic() without a separate service lookup
   WalletService get walletServiceRef => _wallet;
 
   // ── Init ───────────────────────────────────────────────────────────────────
+
+  /// Creates a brand new wallet then fully initializes.
+  Future<void> createAndInitialize() async {
+    await _wallet.createNewWalletPublic();
+    _isFirstLaunch = false;
+    await initialize();
+  }
 
   Future<void> initialize() async {
     if (_isInitializing || walletReady) return;
@@ -175,6 +214,7 @@ class BlockchainProvider with ChangeNotifier {
       _polBalance = await _wallet.getBalance();
 
       debugPrint('✅ BlockchainProvider initialized: $_walletAddress');
+      _startBalancePolling();
     } catch (e) {
       _errorMessage = 'Wallet initialization failed: $e';
       debugPrint('❌ BlockchainProvider init error: $e');
@@ -520,6 +560,74 @@ class BlockchainProvider with ChangeNotifier {
     } finally {
       _setProcessing(false);
     }
+  }
+
+  // ── Balance polling ────────────────────────────────────────────────────────
+
+  /// Polls the Polygon RPC for the current balance every 30 seconds.
+  /// This ensures the UI stays up to date when:
+  ///   - Someone sends POL to this wallet
+  ///   - An escrow contract releases funds
+  ///   - Any external transaction affects the balance
+  void _startBalancePolling() {
+    _balancePollTimer?.cancel();
+    // Fetch ZAR rate immediately on first connect
+    _fetchZarRate();
+    _balancePollTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) async {
+        if (!walletReady) return;
+        // Refresh balance
+        try {
+          final fresh = await _wallet.getBalance();
+          if (fresh != _polBalance) {
+            _polBalance = fresh;
+            debugPrint('💰 Balance updated: $_polBalance POL');
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('⚠️  Balance poll failed (will retry): $e');
+        }
+        // Refresh ZAR rate every 5 minutes (every 10th 30s tick)
+        if (DateTime.now().minute % 5 == 0) _fetchZarRate();
+      },
+    );
+    debugPrint('⏱️  Balance polling started (every 30s)');
+  }
+
+  Future<void> _fetchZarRate() async {
+    try {
+      final uri = Uri.parse(
+        'https://api.coingecko.com/api/v3/simple/price'
+        '?ids=polygon-ecosystem-token&vs_currencies=zar',
+      );
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final rate =
+            (data['polygon-ecosystem-token']?['zar'] as num?)?.toDouble();
+        if (rate != null && rate != _polToZarRate) {
+          _polToZarRate = rate;
+          debugPrint('💱 POL/ZAR rate updated: $rate');
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️  ZAR rate fetch failed: $e');
+    }
+  }
+
+  void _stopBalancePolling() {
+    _balancePollTimer?.cancel();
+    _balancePollTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _stopBalancePolling();
+    super.dispose();
   }
 
   void clearError() {
