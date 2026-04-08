@@ -181,11 +181,10 @@ class _ListingCardState extends State<ListingCard>
 
                       // Price + distance + chevron
                       Builder(builder: (bCtx) {
-                        final rate = bCtx
-                            .watch<BlockchainProvider>()
-                            .polToZarRate;
+                        final bp = bCtx.watch<BlockchainProvider>();
+                        final rate = bp.polToZarRate;
                         final polStr = rate != null && rate > 0
-                            ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} POL'
+                            ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} ${bp.network.tokenSymbol}'
                             : '';
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -247,11 +246,10 @@ class _ListingCardState extends State<ListingCard>
                             child: Row(
                               children: [
                                 Builder(builder: (bCtx) {
-                                  final rate = bCtx
-                                      .watch<BlockchainProvider>()
-                                      .polToZarRate;
+                                  final bp = bCtx.watch<BlockchainProvider>();
+                                  final rate = bp.polToZarRate;
                                   final pol = rate != null && rate > 0
-                                      ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} POL'
+                                      ? '≈ ${(widget.listing.pricePerKwh / rate).toStringAsFixed(4)} ${bp.network.tokenSymbol}'
                                       : null;
                                   return _statTile(bCtx,
                                       icon: Icons.bolt,

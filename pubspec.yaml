@@ -39,6 +39,7 @@ dependencies:
 
   # Encrypted on-device key storage (Android Keystore / iOS Secure Enclave)
   flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
 
   # BIP39 mnemonic generation and seed derivation
   bip39: ^1.0.6
@@ -68,7 +69,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/ev2ev_icon.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#0D1F0D"
+  adaptive_icon_background: "#2E7D32"
   adaptive_icon_foreground: "assets/icon/ev2ev_icon.png"
 
 flutter_native_splash:
@@ -78,7 +79,7 @@ flutter_native_splash:
   image_dark: assets/icon/ev2ev_icon.png
   android_12:
     image: assets/icon/ev2ev_icon.png
-    color: "#0D1F0D"
+    color: "#2E7D32"
     image_dark: assets/icon/ev2ev_icon.png
-    color_dark: "#0A1A0A"
+    color_dark: "#1B5E20"
   fullscreen: false

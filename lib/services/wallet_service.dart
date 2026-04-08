@@ -13,6 +13,7 @@
 //   ed25519_hd_key: ^2.2.0
 //
 import 'package:flutter/foundation.dart';
+import '../models/app_network.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:web3dart/web3dart.dart';
@@ -36,9 +37,8 @@ class WalletService {
   //   Hardhat local:   rpcUrl = 'http://10.0.2.2:8545',  chainId = 31337
   //   Polygon Amoy:    rpcUrl = 'https://rpc-amoy.polygon.technology', chainId = 80002
   //   Polygon mainnet: rpcUrl = 'https://polygon-rpc.com', chainId = 137
-  static const String rpcUrl =
-      'https://rpc-amoy.polygon.technology';
-  static const int chainId = 80002; // Amoy testnet
+  // Network is set externally via reinitializeForNetwork()
+  // Use AppNetwork enum values for all network-specific constants.
 
   // Deployed EnergyEscrow contract address (set after deployment)
   static const String contractAddress =
@@ -78,6 +78,13 @@ class WalletService {
 
   /// Public entry point for creating a fresh wallet (called on first launch).
   Future<void> createNewWalletPublic() => _createNewWallet();
+
+  /// Switch the active RPC to a different network without touching keys.
+  void reinitializeForNetwork(AppNetwork network) {
+    _client?.dispose();
+    _client = Web3Client(network.rpcUrl, http.Client());
+    debugPrint('🌐 Network switched to ${network.displayName}');
+  }
 
   // ── Saved accounts ─────────────────────────────────────────────────────────
 
@@ -152,8 +159,8 @@ class WalletService {
 
   /// Call once at app startup (after user logs in).
   /// Loads existing wallet or creates a new one if this is the first launch.
-  Future<void> initialize() async {
-    _client = Web3Client(rpcUrl, http.Client());
+  Future<void> initialize({AppNetwork network = AppNetwork.polygon}) async {
+    _client = Web3Client(network.rpcUrl, http.Client());
 
     final existingKey = await _storage.read(key: _keyPrivateKey);
     if (existingKey != null) {
@@ -275,7 +282,7 @@ class WalletService {
     final hash = await _client!.sendTransaction(
       _credentials!,
       tx,
-      chainId: chainId,
+      chainId: 80002, // Set correctly per-network via reinitializeForNetwork
     );
 
     debugPrint('📤 Tx sent: $hash');

@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../providers/blockchain_provider.dart';
+import '../services/auth_service.dart';
+import '../models/app_network.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -19,11 +21,6 @@ class _WalletScreenState extends State<WalletScreen> {
   bool _showMnemonic = false;
   String? _mnemonic;
 
-  // Import wallet
-  bool _importExpanded = false;
-  bool _isImporting = false;
-  final _importController = TextEditingController();
-  String? _importError;
   bool _loadingMnemonic = false;
 
   // Send POL form
@@ -52,7 +49,6 @@ class _WalletScreenState extends State<WalletScreen> {
   void dispose() {
     _sendAddressController.dispose();
     _sendAmountController.dispose();
-    _importController.dispose();
     super.dispose();
   }
 
@@ -145,6 +141,7 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+
   // ── Balance card ────────────────────────────────────────────────────────────
   Widget _buildBalanceCard(BlockchainProvider bp, ColorScheme cs) {
     final zarValue = _polToZar != null
@@ -207,7 +204,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 children: [
                   // POL amount
                   Text(
-                    '${bp.polBalance.toStringAsFixed(4)} POL',
+                    '${bp.polBalance.toStringAsFixed(4)} ${bp.network.tokenSymbol}',
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -238,7 +235,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       if (zarValue != null) ...[
                         const SizedBox(width: 6),
                         Text(
-                          '· Polygon Amoy',
+                          '· ${bp.network.displayName}',
                           style: TextStyle(
                             fontSize: 11,
                             color: cs.onSurface.withValues(alpha: 0.4),
@@ -246,7 +243,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                       ] else if (!_loadingRate)
                         Text(
-                          'Polygon Amoy Testnet',
+                          bp.network.label,
                           style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurface.withValues(alpha: 0.5),
@@ -595,7 +592,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       label: Text(
                         (bp.isProcessing || _isSending)
                             ? 'Sending…'
-                            : 'Send POL',
+                            : 'Send ${context.read<BlockchainProvider>().network.tokenSymbol}',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.bold),
                       ),
@@ -901,233 +898,10 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
 
-  // ── Import / restore wallet card ─────────────────────────────────────────────
-  Widget _buildImportCard(
-      BuildContext context, BlockchainProvider bp, ColorScheme cs) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Collapsible header ─────────────────────────────────────────
-            InkWell(
-              onTap: () => setState(() {
-                _importExpanded = !_importExpanded;
-                _importError = null;
-              }),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.restore_rounded,
-                          color: Colors.purple, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Import existing wallet',
-                              style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600)),
-                          Text('Restore from recovery phrase',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                    AnimatedRotation(
-                      turns: _importExpanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 220),
-                      child: const Icon(Icons.keyboard_arrow_down,
-                          size: 20, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Expandable body ────────────────────────────────────────────
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 220),
-              crossFadeState: _importExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 14),
-
-                  // Warning
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.5)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline,
-                            color: Colors.orange, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'This will replace your current wallet. '
-                            'Make sure you have backed up your existing '
-                            'recovery phrase before importing.',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange.shade700,
-                                height: 1.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Phrase input
-                  TextFormField(
-                    controller: _importController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Enter your 12-word recovery phrase, separated by spaces',
-                      hintStyle: TextStyle(
-                          fontSize: 13,
-                          color: cs.onSurface.withValues(alpha: 0.4)),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.all(14),
-                      errorText: _importError,
-                      errorMaxLines: 3,
-                    ),
-                    style: const TextStyle(
-                        fontSize: 13, fontFamily: 'monospace'),
-                    onChanged: (_) {
-                      if (_importError != null) {
-                        setState(() => _importError = null);
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Import button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isImporting
-                          ? null
-                          : () => _handleImport(context, bp),
-                      icon: _isImporting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white))
-                          : const Icon(Icons.restore_rounded, size: 18),
-                      label: Text(_isImporting
-                          ? 'Importing…'
-                          : 'Import wallet'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Import handler ────────────────────────────────────────────────────────────
-  Future<void> _handleImport(
-      BuildContext context, BlockchainProvider bp) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final phrase = _importController.text.trim().toLowerCase();
-
-    // Basic validation
-    final words = phrase.split(' ');
-    if (words.length != 12) {
-      setState(() =>
-          _importError = 'Please enter exactly 12 words separated by spaces.');
-      return;
-    }
-
-    setState(() {
-      _isImporting = true;
-      _importError = null;
-    });
-
-    try {
-      final success =
-          await bp.walletServiceRef.restoreFromMnemonic(phrase);
-
-      if (!mounted) return;
-
-      if (success) {
-        // Refresh balance with new address
-        await bp.refreshBalance();
-        setState(() {
-          _isImporting = false;
-          _importExpanded = false;
-          _importController.clear();
-          _showMnemonic = false;
-          _mnemonic = null;
-        });
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Wallet imported successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      } else {
-        setState(() {
-          _isImporting = false;
-          _importError =
-              'Invalid recovery phrase. Please check each word and try again.';
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isImporting = false;
-        _importError = 'Import failed: ${e.toString()}';
-      });
-    }
-  }
-
-  // ── Testnet info card ───────────────────────────────────────────────────────
+  // ── Switch account bottom sheet ──────────────────────────────────────────────
   Widget _buildTestnetInfoCard(ColorScheme cs) {
+    // Get network from provider — use listen:false since this is called in build
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -1202,6 +976,13 @@ class _WalletScreenState extends State<WalletScreen> {
     final amount = double.parse(_sendAmountController.text);
     final confirmed = await _showSendConfirmDialog(address, amount);
     if (confirmed != true || !mounted) return;
+
+    // ── Biometric / PIN gate ───────────────────────────────────────────
+    final symbol = bp.network.tokenSymbol;
+    final authed = await AuthService.instance.authenticate(
+      'Confirm sending $amount $symbol to ${address.substring(0, 6)}…${address.substring(address.length - 4)}',
+    );
+    if (!authed || !mounted) return;
 
     setState(() {
       _isSending = true;
@@ -1331,6 +1112,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _revealMnemonic(BlockchainProvider bp) async {
+    // Require auth before showing recovery phrase
+    final authed = await AuthService.instance.authenticate(
+      'Authenticate to reveal your recovery phrase',
+    );
+    if (!authed || !mounted) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1671,6 +1458,82 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
               style: TextStyle(
                   fontSize: 13,
                   color: cs.onSurface.withValues(alpha: 0.5))),
+
+          const SizedBox(height: 14),
+
+          // ── Compact network selector ───────────────────────────────────
+          Consumer<BlockchainProvider>(
+            builder: (ctx, bp, _) => Row(
+              children: [
+                Text('Network',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface.withValues(alpha: 0.45))),
+                const SizedBox(width: 12),
+                ...AppNetwork.values.map((network) {
+                  final isActive = bp.network == network;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => bp.switchNetwork(network),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? const Color(0xFF2E7D32).withValues(alpha: 0.1)
+                              : cs.onSurface.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isActive
+                                ? const Color(0xFF2E7D32)
+                                : cs.onSurface.withValues(alpha: 0.15),
+                            width: isActive ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isActive
+                                  ? Icons.circle
+                                  : Icons.circle_outlined,
+                              size: 8,
+                              color: isActive
+                                  ? const Color(0xFF2E7D32)
+                                  : cs.onSurface.withValues(alpha: 0.3),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              network.tokenSymbol,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isActive
+                                      ? const Color(0xFF2E7D32)
+                                      : cs.onSurface.withValues(alpha: 0.55)),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              network.displayName,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: isActive
+                                      ? const Color(0xFF2E7D32).withValues(alpha: 0.7)
+                                      : cs.onSurface.withValues(alpha: 0.35)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 16),
 
           if (_loading)
@@ -1796,7 +1659,6 @@ class _WalletSetupScreenState extends State<_WalletSetupScreen> {
 
   @override
   void dispose() {
-    _importController.dispose();
     super.dispose();
   }
 
@@ -2099,12 +1961,13 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
       _error = null;
     });
     final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     try {
       final success = await widget.bp.walletServiceRef.restoreFromMnemonic(phrase);
       if (!mounted) return;
       if (success) {
         await widget.bp.refreshBalance();
-        Navigator.pop(context);
+        navigator.pop();
         messenger.showSnackBar(const SnackBar(
           content: Text('Wallet imported and switched successfully!'),
           backgroundColor: Colors.green,

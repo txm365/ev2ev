@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
+import '../services/auth_service.dart';
 import '../models/energy_request.dart';
 
 class PaymentBottomSheet extends StatefulWidget {
@@ -168,7 +169,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
               const SizedBox(height: 4),
               _summaryRow(
                 'Total (POL)',
-                '${totalPol.toStringAsFixed(4)} POL',
+                '${totalPol.toStringAsFixed(4)} ${bp.network.tokenSymbol}',
                 bold: true,
                 valueColor: _green,
               ),
@@ -210,8 +211,8 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
               Expanded(
                 child: Text(
                   hasEnoughPol
-                      ? 'Balance: ${bp.polBalance.toStringAsFixed(4)} POL ✓'
-                      : 'Insufficient balance (${bp.polBalance.toStringAsFixed(4)} POL). '
+                      ? 'Balance: ${bp.polBalance.toStringAsFixed(4)} ${bp.network.tokenSymbol} ✓'
+                      : 'Insufficient balance (${bp.polBalance.toStringAsFixed(4)} ${bp.network.tokenSymbol}). '
                         'Top up from the Wallet screen.',
                   style: TextStyle(
                     fontSize: 12,
@@ -324,7 +325,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
         const SizedBox(height: 8),
         Center(
           child: Text(
-            '${totalPol.toStringAsFixed(4)} POL locked in smart contract',
+            '${totalPol.toStringAsFixed(4)} ${bp.network.tokenSymbol} locked in smart contract',
             style: TextStyle(
                 fontSize: 13, color: cs.onSurface.withValues(alpha: 0.6)),
           ),
@@ -444,10 +445,18 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   Future<void> _submit(BuildContext context, BlockchainProvider bp) async {
-    setState(() => _step = _PayStep.processing);
-
+    // ── Biometric / PIN gate ────────────────────────────────────────────
     final rate = bp.polToZarRate ?? _polToZarFallback;
     final totalPol = _totalZar / rate;
+    final symbol = bp.network.tokenSymbol;
+    final authed = await AuthService.instance.authenticate(
+      'Confirm payment of ${totalPol.toStringAsFixed(4)} $symbol'
+      ' (R${_totalZar.toStringAsFixed(2)}) into escrow',
+    );
+    if (!authed || !mounted) return;
+
+    setState(() => _step = _PayStep.processing);
+
     final tradeId = await bp.depositToEscrow(
       supabaseRequestId: widget.request.id,
       sellerWalletAddress: widget.sellerWalletAddress,

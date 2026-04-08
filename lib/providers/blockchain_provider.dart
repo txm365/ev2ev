@@ -6,6 +6,8 @@
 //
 import 'dart:async';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/app_network.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -136,7 +138,9 @@ class BlockchainProvider with ChangeNotifier {
   String? _errorMessage;
   String? _walletAddress;
   double _polBalance = 0.0;
-  double? _polToZarRate;        // live POL→ZAR rate from CoinGecko
+  double? _polToZarRate;        // live ZAR rate for current network token
+  AppNetwork _network = AppNetwork.polygon; // active network
+  static const _prefNetworkKey = 'ev2ev_selected_network';
   final List<EscrowTrade> _trades = [];
   Timer? _balancePollTimer;
 
@@ -149,6 +153,7 @@ class BlockchainProvider with ChangeNotifier {
   String? get walletAddress => _walletAddress;
   double get polBalance => _polBalance;
   double? get polToZarRate => _polToZarRate;
+  AppNetwork get network => _network;
 
   // ── Account management ──────────────────────────────────────────────────────
 
@@ -174,9 +179,32 @@ class BlockchainProvider with ChangeNotifier {
 
   /// Call this before initialize() to detect first launch without creating a wallet.
   Future<void> checkFirstLaunch() async {
+    await _loadSavedNetwork();
     final exists = await _wallet.hasExistingWallet();
     _isFirstLaunch = !exists;
     notifyListeners();
+  }
+
+  Future<void> _loadSavedNetwork() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = prefs.getString(_prefNetworkKey);
+    if (key != null) _network = AppNetwork.fromKey(key);
+  }
+
+  Future<void> switchNetwork(AppNetwork network) async {
+    if (_network == network) return;
+    _network = network;
+    _polToZarRate = null;
+    _polBalance = 0.0;
+    notifyListeners();
+    // Persist selection
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefNetworkKey, network.name);
+    // Point wallet service RPC at new network
+    _wallet.reinitializeForNetwork(network);
+    // Refresh balance and rate for new network
+    await refreshBalance();
+    _fetchZarRate();
   }
 
   /// Exposed so WalletScreen can call getMnemonic() without a separate service lookup
@@ -198,7 +226,7 @@ class BlockchainProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _wallet.initialize();
+      await _wallet.initialize(network: _network);
       _walletAddress = _wallet.publicAddress;
 
       // Save wallet address to Supabase user profile so sellers can be paid
@@ -369,7 +397,7 @@ class BlockchainProvider with ChangeNotifier {
   Future<EscrowStatus?> getTradeStatus(String tradeId) async {
     if (_contract == null) return null;
     try {
-      final client = Web3Client(WalletService.rpcUrl, http.Client());
+      final client = Web3Client(_network.rpcUrl, http.Client());
       final result = await client.call(
         contract: _contract!,
         function: _fn('getTradeStatus'),
@@ -443,7 +471,7 @@ class BlockchainProvider with ChangeNotifier {
         'action': action,
         'amount_pol': amountPol,
         'wallet_address': _walletAddress,
-        'chain_id': WalletService.chainId,
+        'chain_id': _network.chainId,
         'created_at': DateTime.now().toIso8601String(),
       });
       debugPrint('✅ Tx recorded in Supabase: $txHash');
@@ -597,20 +625,20 @@ class BlockchainProvider with ChangeNotifier {
 
   Future<void> _fetchZarRate() async {
     try {
+      final coinId = _network.coingeckoId;
       final uri = Uri.parse(
         'https://api.coingecko.com/api/v3/simple/price'
-        '?ids=polygon-ecosystem-token&vs_currencies=zar',
+        '?ids=$coinId&vs_currencies=zar',
       );
       final response = await http
           .get(uri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final rate =
-            (data['polygon-ecosystem-token']?['zar'] as num?)?.toDouble();
+        final rate = (data[coinId]?['zar'] as num?)?.toDouble();
         if (rate != null && rate != _polToZarRate) {
           _polToZarRate = rate;
-          debugPrint('💱 POL/ZAR rate updated: $rate');
+          debugPrint('💱 ${_network.tokenSymbol}/ZAR rate updated: $rate');
           notifyListeners();
         }
       }

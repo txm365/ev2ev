@@ -240,14 +240,13 @@ class _RequestCardState extends State<RequestCard>
                                     label: 'Requested'),
                                 _vDivider(cs),
                                 Builder(builder: (bCtx) {
-                                  final rate = bCtx
-                                      .watch<BlockchainProvider>()
-                                      .polToZarRate;
+                                  final bp = bCtx.watch<BlockchainProvider>();
+                                  final rate = bp.polToZarRate;
                                   final priceZar =
                                       widget.request.offeredPricePerKwh;
                                   final polPerKwh = priceZar != null &&
                                           rate != null && rate > 0
-                                      ? '≈ ${(priceZar / rate).toStringAsFixed(4)} POL'
+                                      ? '≈ ${(priceZar / rate).toStringAsFixed(4)} ${bp.network.tokenSymbol}'
                                       : null;
                                   return _statTile(bCtx,
                                       icon: Icons.bolt,
@@ -260,12 +259,11 @@ class _RequestCardState extends State<RequestCard>
                                 }),
                                 _vDivider(cs),
                                 Builder(builder: (bCtx) {
-                                  final rate = bCtx
-                                      .watch<BlockchainProvider>()
-                                      .polToZarRate;
+                                  final bp = bCtx.watch<BlockchainProvider>();
+                                  final rate = bp.polToZarRate;
                                   final polTotal = total != null &&
                                           rate != null && rate > 0
-                                      ? '≈ ${(total / rate).toStringAsFixed(4)} POL'
+                                      ? '≈ ${(total / rate).toStringAsFixed(4)} ${bp.network.tokenSymbol}'
                                       : null;
                                   return _statTile(bCtx,
                                       icon: Icons.receipt_long,
