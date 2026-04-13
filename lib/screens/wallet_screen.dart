@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -211,7 +212,8 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  // ZAR value row
+                  // ZAR value row — hidden for Hardhat (test ETH has no real value)
+                  if (bp.network != AppNetwork.hardhat)
                   Row(
                     children: [
                       if (zarValue != null)
@@ -251,8 +253,17 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                     ],
                   ),
+                  // Hardhat — show test label instead
+                  if (bp.network == AppNetwork.hardhat)
+                    Text(
+                      'Hardhat Local · Test ETH · No real value',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange.shade600,
+                      ),
+                    ),
                   // Rate source note
-                  if (zarValue != null)
+                  if (zarValue != null && bp.network != AppNetwork.hardhat)
                     Text(
                       'Rate via CoinGecko · tap ↻ to refresh',
                       style: TextStyle(
@@ -691,11 +702,64 @@ class _WalletScreenState extends State<WalletScreen> {
             const SizedBox(height: 10),
 
             Text(
-              'Scan to receive POL · tap address to copy',
+              'Scan to receive ${bp.network.tokenSymbol} · tap address to copy',
               style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurface.withValues(alpha: 0.4)),
             ),
+
+            // ── Hardhat account badge ────────────────────────────────
+            if (bp.network == AppNetwork.hardhat) ...[
+              const SizedBox(height: 8),
+              FutureBuilder<List<Map<String, String>>>(
+                future: bp.getSavedAccounts(),
+                builder: (ctx, snap) {
+                  if (!snap.hasData) return const SizedBox.shrink();
+                  final accounts = snap.data!;
+                  final idx = accounts.indexWhere((a) =>
+                    a['address']?.toLowerCase() ==
+                    (bp.walletAddress ?? '').toLowerCase());
+                  final label = idx >= 0
+                      ? (accounts[idx]['label'] ?? 'Account ${idx + 1}')
+                      : 'Hardhat Account';
+                  final knownHardhat = [
+                    '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+                    '0x70997970c51812dc3a010c7d01b50e0d17dc79c8',
+                    '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc',
+                    '0x90f79bf6eb2c4f870365e785982e1f101e93b906',
+                    '0x15d34aaf54267db7d7c367839aaf71a00a2c6a65',
+                  ];
+                  final addrLower = (bp.walletAddress ?? '').toLowerCase();
+                  final acctNum = knownHardhat.indexOf(addrLower);
+                  final badge = acctNum >= 0
+                      ? 'Hardhat Account #$acctNum'
+                      : label;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lan_outlined,
+                            color: Colors.orange, size: 13),
+                        const SizedBox(width: 6),
+                        Text(badge,
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange.shade700)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -900,7 +964,68 @@ class _WalletScreenState extends State<WalletScreen> {
 
   // ── Switch account bottom sheet ──────────────────────────────────────────────
   Widget _buildTestnetInfoCard(ColorScheme cs) {
-    // Get network from provider — use listen:false since this is called in build
+    final bp = context.read<BlockchainProvider>();
+
+    // Hardhat — no faucet needed, show node info instead
+    if (bp.network == AppNetwork.hardhat) {
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.orange.withValues(alpha: 0.3)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.lan_outlined,
+                    color: Colors.orange, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Hardhat Local — ${bp.hardhatRpcUrl}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Local test chain. ETH has no real value. '
+                      'Import any of the 20 funded accounts using '
+                      'their private key to get 10,000 test ETH. '
+                      'Chain resets when the node restarts.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                          height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Polygon Amoy or Ethereum Sepolia — show faucet info
+    final isPolygon = bp.network == AppNetwork.polygon;
+    final title = isPolygon ? 'Get Test POL' : 'Get Test ETH';
+    final faucetText = isPolygon
+        ? 'This wallet uses Polygon Amoy testnet. Get free test '
+          'POL from faucet.polygon.technology — select Amoy '
+          'and paste your address above.'
+        : 'This wallet uses Ethereum Sepolia testnet. Get free test '
+          'ETH from sepoliafaucet.com or faucets.alchemy.com — '
+          'paste your address above.';
 
     return Card(
       elevation: 0,
@@ -919,23 +1044,19 @@ class _WalletScreenState extends State<WalletScreen> {
                 color: cs.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child:
-                  Icon(Icons.info_outline, color: cs.primary, size: 18),
+              child: Icon(Icons.info_outline, color: cs.primary, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Get Test POL',
-                      style: TextStyle(
+                  Text(title,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 4),
                   Text(
-                    'This wallet uses Polygon Amoy testnet. Get free test '
-                    'POL from faucet.polygon.technology or '
-                    'faucets.alchemy.com — select Amoy and paste your '
-                    'address above.',
+                    faucetText,
                     style: TextStyle(
                         fontSize: 12,
                         color: cs.onSurface.withValues(alpha: 0.6),
@@ -977,17 +1098,21 @@ class _WalletScreenState extends State<WalletScreen> {
     final confirmed = await _showSendConfirmDialog(address, amount);
     if (confirmed != true || !mounted) return;
 
+    // Lock immediately so double-tap can't fire a second tx
+    setState(() {
+      _isSending = true;
+      _lastTxHash = null;
+    });
+
     // ── Biometric / PIN gate ───────────────────────────────────────────
     final symbol = bp.network.tokenSymbol;
     final authed = await AuthService.instance.authenticate(
       'Confirm sending $amount $symbol to ${address.substring(0, 6)}…${address.substring(address.length - 4)}',
     );
-    if (!authed || !mounted) return;
-
-    setState(() {
-      _isSending = true;
-      _lastTxHash = null;
-    });
+    if (!authed || !mounted) {
+      setState(() => _isSending = false);
+      return;
+    }
 
     bp.clearError();
 
@@ -1375,11 +1500,51 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
   int _activeIndex = 0;
   bool _loading = true;
   bool _switching = false;
+  // Hardhat connection state
+  bool _showHardhatForm = false;
+  bool? _nodeOnline;   // null=checking, true=online, false=offline
+  Timer? _pingTimer;
+  final _manualRpcCtrl    = TextEditingController();
+  final _manualChainCtrl  = TextEditingController();
+  final _manualContractCtrl = TextEditingController();
 
+  @override
   @override
   void initState() {
     super.initState();
     _load();
+    _startPing();
+  }
+
+  @override
+  void dispose() {
+    _pingTimer?.cancel();
+    _manualRpcCtrl.dispose();
+    _manualChainCtrl.dispose();
+    _manualContractCtrl.dispose();
+    super.dispose();
+  }
+
+  void _startPing() {
+    _pingNode();
+    _pingTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pingNode());
+  }
+
+  Future<void> _pingNode() async {
+    if (widget.bp.network != AppNetwork.hardhat) return;
+    final url = widget.bp.hardhatRpcUrl;
+    if (url.isEmpty || url.contains('192.168.1.1')) return;
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}',
+      ).timeout(const Duration(seconds: 2));
+      final online = response.statusCode == 200 && response.body.contains('result');
+      if (mounted && _nodeOnline != online) setState(() => _nodeOnline = online);
+    } catch (_) {
+      if (mounted && _nodeOnline != false) setState(() => _nodeOnline = false);
+    }
   }
 
   Future<void> _load() async {
@@ -1391,37 +1556,196 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
         _activeIndex = active;
         _loading = false;
       });
+      _manualRpcCtrl.text = widget.bp.hardhatRpcUrl;
+      _manualChainCtrl.text = '31337';
+      _manualContractCtrl.text = '';
     }
   }
 
   Future<void> _switch(int index) async {
-    if (index == _activeIndex) {
-      Navigator.pop(context);
-      return;
-    }
+    if (index == _activeIndex) { Navigator.pop(context); return; }
     setState(() => _switching = true);
     final success = await widget.bp.switchAccount(index);
     if (!mounted) return;
     if (success) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Switched to ${_accounts[index]['label'] ?? 'Account ${index + 1}'}'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Switched to ${_accounts[index]['label'] ?? 'Account ${index + 1}'}'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ));
     } else {
       setState(() => _switching = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to switch account'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Failed to switch account'),
+        backgroundColor: Colors.red,
+      ));
     }
   }
+
+
+  // ── Hardhat connection helpers ─────────────────────────────────────────────
+  Future<void> _applyHardhatConfig({
+    required String rpc,
+    required String contract,
+  }) async {
+    final url = rpc.trim();
+    if (url.isEmpty || !url.startsWith('http')) return;
+
+    await widget.bp.setHardhatRpcUrl(url);
+
+    if (widget.bp.network != AppNetwork.hardhat) {
+      await widget.bp.switchNetwork(AppNetwork.hardhat);
+    }
+
+    if (mounted) {
+      setState(() => _showHardhatForm = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('✅ Connected to Hardhat at $url'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ));
+    }
+  }
+
+  Future<void> _saveManualConfig() async {
+    await _applyHardhatConfig(
+      rpc: _manualRpcCtrl.text,
+      contract: _manualContractCtrl.text,
+    );
+  }
+
+  Future<void> _scanHardhatQr() async {
+    final raw = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => const _HardhatQrScanner(),
+    );
+    if (raw == null || !mounted) return;
+
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final rpc      = (data['rpc']      as String?) ?? '';
+      final contract = (data['contract'] as String?) ?? '';
+      final mnemonic = (data['mnemonic'] as String?) ?? '';
+
+      // Auto-fill form fields so user can review
+      _manualRpcCtrl.text = rpc;
+      _manualChainCtrl.text = (data['chainId'] ?? 31337).toString();
+      _manualContractCtrl.text = contract;
+
+      if (mounted) setState(() => _showHardhatForm = true);
+
+      // Optionally import test wallet
+      if (mnemonic.isNotEmpty && mounted) {
+        final accounts = await widget.bp.getSavedAccounts();
+        final alreadyHave = accounts.any((a) =>
+          a['address']?.toLowerCase() ==
+          '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266');
+        if (!alreadyHave && mounted) {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Import Test Wallet?'),
+              content: const Text(
+                'Import Hardhat Account #0?\n10,000 test ETH ready to use.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Skip')),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Import')),
+              ],
+            ),
+          );
+          if (ok == true && mounted) {
+            await widget.bp.walletServiceRef.restoreFromMnemonic(mnemonic);
+            await widget.bp.refreshBalance();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('✅ Test wallet imported'),
+                backgroundColor: Colors.green,
+              ));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('QR parse error: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+
+  Widget _hardhatInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(children: [
+        Text('$label: ',
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange.shade700)),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                  color: Colors.orange.shade800),
+              overflow: TextOverflow.ellipsis),
+        ),
+      ]),
+    );
+  }
+
+  Widget _hardhatFormField({
+    required TextEditingController ctrl,
+    required String label,
+    required String hint,
+    required ColorScheme cs,
+    TextInputType keyboardType = TextInputType.url,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange.shade700)),
+        const SizedBox(height: 3),
+        TextField(
+          controller: ctrl,
+          keyboardType: keyboardType,
+          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.3), fontSize: 11),
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide:
+                  BorderSide(color: Colors.orange.shade400, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
 
   String _truncate(String address) {
     if (address.length < 12) return address;
@@ -1431,9 +1755,10 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+    // Shift content up when keyboard appears
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 32 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1455,87 +1780,228 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text('Tap an account to switch to it',
-              style: TextStyle(
-                  fontSize: 13,
+              style: TextStyle(fontSize: 13,
                   color: cs.onSurface.withValues(alpha: 0.5))),
 
           const SizedBox(height: 14),
 
-          // ── Compact network selector ───────────────────────────────────
+          // ── Compact network selector ────────────────────────────────────
           Consumer<BlockchainProvider>(
-            builder: (ctx, bp, _) => Row(
+            builder: (ctx, bp, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Network',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: cs.onSurface.withValues(alpha: 0.45))),
-                const SizedBox(width: 12),
-                ...AppNetwork.values.map((network) {
-                  final isActive = bp.network == network;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => bp.switchNetwork(network),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? const Color(0xFF2E7D32).withValues(alpha: 0.1)
-                              : cs.onSurface.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isActive
-                                ? const Color(0xFF2E7D32)
-                                : cs.onSurface.withValues(alpha: 0.15),
-                            width: isActive ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isActive
-                                  ? Icons.circle
-                                  : Icons.circle_outlined,
-                              size: 8,
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: AppNetwork.values.map((network) {
+                      final isActive = bp.network == network;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => bp.switchNetwork(network),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
                               color: isActive
-                                  ? const Color(0xFF2E7D32)
-                                  : cs.onSurface.withValues(alpha: 0.3),
+                                  ? const Color(0xFF2E7D32).withValues(alpha: 0.1)
+                                  : cs.onSurface.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isActive
+                                    ? const Color(0xFF2E7D32)
+                                    : cs.onSurface.withValues(alpha: 0.15),
+                                width: isActive ? 1.5 : 1,
+                              ),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              network.tokenSymbol,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isActive ? Icons.circle : Icons.circle_outlined,
+                                  size: 8,
                                   color: isActive
                                       ? const Color(0xFF2E7D32)
-                                      : cs.onSurface.withValues(alpha: 0.55)),
+                                      : cs.onSurface.withValues(alpha: 0.3),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(network.tokenSymbol,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isActive
+                                            ? const Color(0xFF2E7D32)
+                                            : cs.onSurface.withValues(alpha: 0.55))),
+                                const SizedBox(width: 4),
+                                Text(network.displayName,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: isActive
+                                            ? const Color(0xFF2E7D32).withValues(alpha: 0.7)
+                                            : cs.onSurface.withValues(alpha: 0.35))),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              network.displayName,
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: isActive
-                                      ? const Color(0xFF2E7D32).withValues(alpha: 0.7)
-                                      : cs.onSurface.withValues(alpha: 0.35)),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  );
-                }),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 16),
 
+          // ── Hardhat connection card ──────────────────────────────────
+          Consumer<BlockchainProvider>(
+            builder: (ctx, bp, _) {
+              if (bp.network != AppNetwork.hardhat) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        // ── Header row ──────────────────────────────────
+                        Row(children: [
+                          const Icon(Icons.lan_outlined,
+                              color: Colors.orange, size: 16),
+                          const SizedBox(width: 6),
+                          Text('Hardhat Local',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange.shade700)),
+                          const SizedBox(width: 8),
+                          // Live node status dot
+                          Tooltip(
+                            message: _nodeOnline == null
+                                ? 'Checking node...'
+                                : _nodeOnline!
+                                    ? 'Node online'
+                                    : 'Node offline — run: npx hardhat node',
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _nodeOnline == null
+                                    ? Colors.grey
+                                    : _nodeOnline!
+                                        ? Colors.green
+                                        : Colors.red,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          // ✏ Manual entry button
+                          IconButton(
+                            icon: Icon(
+                              _showHardhatForm
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.edit_outlined,
+                              size: 18,
+                              color: Colors.orange.shade700,
+                            ),
+                            tooltip: 'Enter details manually',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () =>
+                                setState(() => _showHardhatForm = !_showHardhatForm),
+                          ),
+                          const SizedBox(width: 8),
+                          // QR scan button
+                          IconButton(
+                            icon: Icon(Icons.qr_code_scanner,
+                                size: 18, color: Colors.orange.shade700),
+                            tooltip: 'Scan QR from terminal',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: _scanHardhatQr,
+                          ),
+                        ]),
+
+                        // ── Current config display ───────────────────────
+                        if (!_showHardhatForm) ...[
+                          const SizedBox(height: 8),
+                          _hardhatInfoRow('RPC', bp.hardhatRpcUrl),
+                          _hardhatInfoRow('Chain ID', '31337'),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Use ✏ to edit manually or scan QR from the terminal.',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange.shade600),
+                          ),
+                        ]
+
+                        // ── Manual entry form ────────────────────────────
+                        else ...[
+                          const SizedBox(height: 10),
+                          _hardhatFormField(
+                            ctrl: _manualRpcCtrl,
+                            label: 'RPC URL',
+                            hint: 'http://192.168.x.x:8545',
+                            cs: cs,
+                          ),
+                          const SizedBox(height: 8),
+                          _hardhatFormField(
+                            ctrl: _manualChainCtrl,
+                            label: 'Chain ID',
+                            hint: '31337',
+                            cs: cs,
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 8),
+                          _hardhatFormField(
+                            ctrl: _manualContractCtrl,
+                            label: 'Contract Address (optional)',
+                            hint: '0x5FbDB2315...',
+                            cs: cs,
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _saveManualConfig,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Save & Connect'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              );
+            },
+          ),
+
+          // ── Accounts list ─────────────────────────────────────────────
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_accounts.isEmpty)
@@ -1548,8 +2014,7 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
                   'you create or import a wallet.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: cs.onSurface.withValues(alpha: 0.5),
-                      height: 1.6),
+                      color: cs.onSurface.withValues(alpha: 0.5), height: 1.6),
                 ),
               ),
             )
@@ -1568,35 +2033,26 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
                     backgroundColor: isActive
                         ? const Color(0xFF2E7D32)
                         : cs.onSurface.withValues(alpha: 0.08),
-                    child: Icon(
-                      Icons.account_balance_wallet_outlined,
-                      size: 18,
-                      color: isActive
-                          ? Colors.white
-                          : cs.onSurface.withValues(alpha: 0.5),
-                    ),
+                    child: Icon(Icons.account_balance_wallet_outlined,
+                        size: 18,
+                        color: isActive
+                            ? Colors.white
+                            : cs.onSurface.withValues(alpha: 0.5)),
                   ),
                   title: Text(
                     account['label'] ?? 'Account ${i + 1}',
                     style: TextStyle(
-                        fontWeight: isActive
-                            ? FontWeight.w700
-                            : FontWeight.normal),
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.normal),
                   ),
-                  subtitle: Text(
-                    _truncate(account['address'] ?? ''),
-                    style: const TextStyle(
-                        fontSize: 12, fontFamily: 'monospace'),
-                  ),
+                  subtitle: Text(_truncate(account['address'] ?? ''),
+                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
                   trailing: isActive
                       ? const Icon(Icons.check_circle_rounded,
                           color: Color(0xFF2E7D32))
                       : (_switching
                           ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.chevron_right_rounded,
                               color: Colors.grey)),
                   contentPadding:
@@ -1607,7 +2063,7 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
 
           const SizedBox(height: 16),
 
-          // Add new account hint
+          // Import another account button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -1629,8 +2085,7 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
           Text(
             'Use the "Import existing wallet" card to add another account',
             textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11,
+            style: TextStyle(fontSize: 11,
                 color: cs.onSurface.withValues(alpha: 0.4)),
           ),
         ],
@@ -1638,8 +2093,6 @@ class _SwitchAccountSheetState extends State<_SwitchAccountSheet> {
     );
   }
 }
-
-// ── First-launch wallet setup screen ──────────────────────────────────────────
 
 class _WalletSetupScreen extends StatefulWidget {
   final BlockchainProvider bp;
@@ -1942,6 +2395,9 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
   final _controller = TextEditingController();
   String? _error;
   bool _importing = false;
+  // 0 = mnemonic, 1 = private key
+  int _tabIndex = 0;
+  bool _showKey = false; // eye toggle for private key field
 
   @override
   void dispose() {
@@ -1950,12 +2406,26 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
   }
 
   Future<void> _import() async {
-    final phrase = _controller.text.trim().toLowerCase();
-    final words = phrase.split(' ');
-    if (words.length != 12) {
-      setState(() => _error = 'Please enter exactly 12 words separated by spaces.');
-      return;
+    final input = _controller.text.trim();
+
+    if (_tabIndex == 1) {
+      // ── Private key mode ──
+      String key = input.startsWith('0x') || input.startsWith('0X')
+          ? input.substring(2) : input;
+      if (key.length != 64) {
+        setState(() => _error = 'Private key must be 64 hex characters (with or without 0x).');
+        return;
+      }
+    } else {
+      // ── Mnemonic mode ──
+      final phrase = input.toLowerCase();
+      final words = phrase.split(' ');
+      if (words.length != 12) {
+        setState(() => _error = 'Please enter exactly 12 words separated by spaces.');
+        return;
+      }
     }
+
     setState(() {
       _importing = true;
       _error = null;
@@ -1963,7 +2433,10 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
-      final success = await widget.bp.walletServiceRef.restoreFromMnemonic(phrase);
+      final input2 = _controller.text.trim();
+      final success = _tabIndex == 1
+          ? await widget.bp.walletServiceRef.importFromPrivateKey(input2)
+          : await widget.bp.walletServiceRef.restoreFromMnemonic(input2.toLowerCase());
       if (!mounted) return;
       if (success) {
         await widget.bp.refreshBalance();
@@ -2072,22 +2545,103 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
 
           const SizedBox(height: 14),
 
-          // Phrase input
+          // ── Tab selector ─────────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: Row(children: [
+              Expanded(child: GestureDetector(
+                onTap: () => setState(() { _tabIndex = 0; _controller.clear(); _error = null; _showKey = false; }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _tabIndex == 0 ? cs.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Recovery Phrase',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: _tabIndex == 0 ? FontWeight.w600 : FontWeight.normal,
+                      color: _tabIndex == 0
+                          ? _green
+                          : cs.onSurface.withValues(alpha: 0.5),
+                    )),
+                ),
+              )),
+              Expanded(child: GestureDetector(
+                onTap: () => setState(() { _tabIndex = 1; _controller.clear(); _error = null; _showKey = false; }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _tabIndex == 1 ? cs.surface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Private Key',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: _tabIndex == 1 ? FontWeight.w600 : FontWeight.normal,
+                      color: _tabIndex == 1
+                          ? _green
+                          : cs.onSurface.withValues(alpha: 0.5),
+                    )),
+                ),
+              )),
+            ]),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Context help ──────────────────────────────────────────────
+          Text(
+            _tabIndex == 0
+              ? '12 words separated by spaces. Order matters.'
+              : '64-character hex string from your Hardhat node output (with or without 0x).',
+            style: TextStyle(
+                fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5)),
+          ),
+
+          const SizedBox(height: 8),
+
+          // ── Input field ───────────────────────────────────────────────
           TextField(
             controller: _controller,
-            maxLines: 3,
-            autofocus: true,
+            maxLines: _tabIndex == 0 ? 3 : 1,
+            autofocus: false,
+            obscureText: _tabIndex == 1 && !_showKey,
             decoration: InputDecoration(
-              hintText: 'word1 word2 word3 … word12',
+              hintText: _tabIndex == 0
+                  ? 'word1 word2 word3 … word12'
+                  : '0xac0974bec39a17e36ba4a6b4d238ff944bacb478...',
               hintStyle: TextStyle(
-                  color: cs.onSurface.withValues(alpha: 0.35), fontSize: 13),
+                  color: cs.onSurface.withValues(alpha: 0.35), fontSize: 12),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10)),
               contentPadding: const EdgeInsets.all(14),
               errorText: _error,
               errorMaxLines: 2,
+              // Eye toggle — only shown on private key tab
+              suffixIcon: _tabIndex == 1
+                  ? IconButton(
+                      icon: Icon(
+                        _showKey
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                        color: cs.onSurface.withValues(alpha: 0.45),
+                      ),
+                      onPressed: () =>
+                          setState(() => _showKey = !_showKey),
+                    )
+                  : null,
             ),
-            style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
             onChanged: (_) {
               if (_error != null) setState(() => _error = null);
             },
@@ -2116,6 +2670,121 @@ class _ImportAccountSheetState extends State<_ImportAccountSheet> {
               elevation: 0,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hardhat QR Scanner widget ──────────────────────────────────────────────────
+class _HardhatQrScanner extends StatefulWidget {
+  const _HardhatQrScanner();
+  @override
+  State<_HardhatQrScanner> createState() => _HardhatQrScannerState();
+}
+
+class _HardhatQrScannerState extends State<_HardhatQrScanner> {
+  late final MobileScannerController _ctrl;
+  bool _scanned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_scanned) return;
+    final raw = capture.barcodes.first.rawValue;
+    if (raw == null || raw.isEmpty) return;
+    _scanned = true;
+    _ctrl.stop();
+    Navigator.of(context).pop(raw);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.65,
+      child: Column(
+        children: [
+          // Handle
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white30,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Scan Hardhat QR Code',
+            style: TextStyle(color: Colors.white, fontSize: 16,
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Point camera at the QR shown by ev2ev_hardhat_setup.sh',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          // Scanner
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  MobileScanner(
+                    controller: _ctrl,
+                    onDetect: _onDetect,
+                  ),
+                  // Scan frame overlay
+                  Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.orange, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  // Corner accents
+                  ...[ [0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0] ]
+                      .map((pos) => Positioned(
+                            left: pos[0] == 0
+                                ? MediaQuery.of(context).size.width / 2 - 110
+                                : null,
+                            right: pos[0] == 1
+                                ? MediaQuery.of(context).size.width / 2 - 110
+                                : null,
+                            top: pos[1] == 0 ? null : null,
+                            child: const SizedBox.shrink(),
+                          )),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context, null),
+            icon: const Icon(Icons.close, color: Colors.white54, size: 16),
+            label: const Text('Cancel',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

@@ -5,6 +5,7 @@
 // All signing happens locally on the device via WalletService.
 //
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/blockchain_provider.dart';
 import '../services/auth_service.dart';
@@ -175,7 +176,7 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                '≈ at R${rate.toStringAsFixed(2)}/POL',
+                '≈ at R${rate.toStringAsFixed(2)}/${bp.network.tokenSymbol}',
                 style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurface.withValues(alpha: 0.4)),
@@ -352,14 +353,60 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
           ),
         ),
         if (_txHash != null) ...[
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              'Tx: ${_txHash!.substring(0, 10)}…',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: 'monospace',
-                  color: cs.onSurface.withValues(alpha: 0.4)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _green.withValues(alpha: 0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.receipt_long_outlined,
+                      color: _green, size: 14),
+                  const SizedBox(width: 6),
+                  const Text('Transaction Receipt',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _green)),
+                ]),
+                const SizedBox(height: 8),
+                _receiptRow('Network', bp.network.displayName),
+                _receiptRow('Amount',
+                    '${totalPol.toStringAsFixed(6)} ${bp.network.tokenSymbol}'),
+                _receiptRow('ZAR equiv.',
+                    'R${_totalZar.toStringAsFixed(2)}'),
+                _receiptRow('To', widget.sellerWalletAddress.length > 20
+                    ? '${widget.sellerWalletAddress.substring(0, 10)}…'
+                      '${widget.sellerWalletAddress.substring(
+                          widget.sellerWalletAddress.length - 6)}'
+                    : widget.sellerWalletAddress),
+                const Divider(height: 12),
+                _receiptRow('Tx Hash',
+                    '${_txHash!.substring(0, 14)}…${_txHash!.substring(_txHash!.length - 6)}'),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: _txHash!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Tx hash copied'),
+                          duration: Duration(seconds: 2)),
+                    );
+                  },
+                  child: Text(
+                    'Tap to copy full hash',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: cs.onSurface.withValues(alpha: 0.4),
+                        decoration: TextDecoration.underline),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -398,13 +445,43 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
         ),
         const SizedBox(height: 8),
         if (bp.errorMessage != null)
-          Center(
-            child: Text(
-              bp.errorMessage!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.6)),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              children: [
+                Row(children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange, size: 14),
+                  const SizedBox(width: 6),
+                  const Text('Error Details',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange)),
+                ]),
+                const SizedBox(height: 6),
+                Text(
+                  bp.errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.red),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Network: ${bp.network.displayName}  |  '
+                  'Balance: ${bp.polBalance.toStringAsFixed(4)} '
+                  '${bp.network.tokenSymbol}',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: cs.onSurface.withValues(alpha: 0.5)),
+                ),
+              ],
             ),
           ),
         const SizedBox(height: 20),
@@ -447,28 +524,34 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   Future<void> _submit(BuildContext context, BlockchainProvider bp) async {
     // ── Biometric / PIN gate ────────────────────────────────────────────
     final rate = bp.polToZarRate ?? _polToZarFallback;
-    final totalPol = _totalZar / rate;
+    final totalToken = _totalZar / rate;
     final symbol = bp.network.tokenSymbol;
+
+    // Lock immediately so double-tap can't re-trigger
+    setState(() => _step = _PayStep.processing);
+
+    // Biometric gate
     final authed = await AuthService.instance.authenticate(
-      'Confirm payment of ${totalPol.toStringAsFixed(4)} $symbol'
+      'Confirm payment of ${totalToken.toStringAsFixed(4)} $symbol'
       ' (R${_totalZar.toStringAsFixed(2)}) into escrow',
     );
-    if (!authed || !mounted) return;
-
-    setState(() => _step = _PayStep.processing);
+    if (!authed || !mounted) {
+      setState(() => _step = _PayStep.preview);
+      return;
+    }
 
     final tradeId = await bp.depositToEscrow(
       supabaseRequestId: widget.request.id,
       sellerWalletAddress: widget.sellerWalletAddress,
       energyKwh: widget.request.requestedEnergy,
-      totalPol: totalPol,
+      totalPol: totalToken,
     );
 
     if (!mounted) return;
 
     if (tradeId != null) {
       setState(() {
-          _txHash = bp.trades.isNotEmpty ? null : null; // updated via provider
+        _txHash = tradeId; // tradeId IS the tx hash from escrow deposit
         _step = _PayStep.success;
       });
     } else {
@@ -477,6 +560,25 @@ class _PaymentBottomSheetState extends State<PaymentBottomSheet> {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+  Widget _receiptRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, color: Colors.grey)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
   Widget _summaryRow(String label, String value,
       {bool bold = false, Color? valueColor}) {
     return Row(

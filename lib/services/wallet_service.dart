@@ -39,10 +39,10 @@ class WalletService {
   //   Polygon mainnet: rpcUrl = 'https://polygon-rpc.com', chainId = 137
   // Network is set externally via reinitializeForNetwork()
   // Use AppNetwork enum values for all network-specific constants.
+  int _currentChainId = AppNetwork.polygon.chainId;
 
   // Deployed EnergyEscrow contract address (set after deployment)
-  static const String contractAddress =
-      '0x0000000000000000000000000000000000000000'; // Set this after deploying EnergyEscrow.sol
+  static const String contractAddress = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // auto-patched // Set after deploying
 
   // Secure storage keys
   static const String _keyMnemonic = 'ev2ev_wallet_mnemonic';
@@ -80,10 +80,12 @@ class WalletService {
   Future<void> createNewWalletPublic() => _createNewWallet();
 
   /// Switch the active RPC to a different network without touching keys.
-  void reinitializeForNetwork(AppNetwork network) {
+  void reinitializeForNetwork(AppNetwork network, {String? overrideUrl}) {
     _client?.dispose();
-    _client = Web3Client(network.rpcUrl, http.Client());
-    debugPrint('🌐 Network switched to ${network.displayName}');
+    _client = Web3Client(overrideUrl ?? network.rpcUrl, http.Client());
+    _currentChainId = network.chainId;
+    debugPrint('🌐 Network switched to ${network.displayName}'
+        '${overrideUrl != null ? ' ($overrideUrl)' : ''}');
   }
 
   // ── Saved accounts ─────────────────────────────────────────────────────────
@@ -159,8 +161,12 @@ class WalletService {
 
   /// Call once at app startup (after user logs in).
   /// Loads existing wallet or creates a new one if this is the first launch.
-  Future<void> initialize({AppNetwork network = AppNetwork.polygon}) async {
-    _client = Web3Client(network.rpcUrl, http.Client());
+  Future<void> initialize({
+    AppNetwork network = AppNetwork.polygon,
+    String? overrideUrl,
+  }) async {
+    _client = Web3Client(overrideUrl ?? network.rpcUrl, http.Client());
+    _currentChainId = network.chainId; // ← must match RPC network or EIP-155 fails
 
     final existingKey = await _storage.read(key: _keyPrivateKey);
     if (existingKey != null) {
@@ -254,6 +260,33 @@ class WalletService {
     }
   }
 
+
+  /// Import a wallet directly from a raw private key hex string.
+  /// Accepts with or without 0x prefix.
+  Future<bool> importFromPrivateKey(String rawKey) async {
+    try {
+      String key = rawKey.trim();
+      if (key.startsWith('0x') || key.startsWith('0X')) {
+        key = key.substring(2);
+      }
+      if (key.length != 64) return false;
+
+      _credentials = EthPrivateKey.fromHex(key);
+      _address = _credentials!.address;
+
+      await _storage.write(key: _keyMnemonic, value: '');   // no mnemonic
+      await _storage.write(key: _keyPrivateKey, value: key);
+      await _storage.write(key: _keyAddress, value: _address!.hexEip55);
+      await _saveCurrentToAccountList();
+
+      debugPrint('🔐 Wallet imported from private key: ${_address?.hexEip55}');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Private key import failed: $e');
+      return false;
+    }
+  }
+
   // ── Transaction signing ────────────────────────────────────────────────────
 
   /// Sends a signed transaction to the contract.
@@ -282,7 +315,7 @@ class WalletService {
     final hash = await _client!.sendTransaction(
       _credentials!,
       tx,
-      chainId: 80002, // Set correctly per-network via reinitializeForNetwork
+      chainId: _currentChainId,
     );
 
     debugPrint('📤 Tx sent: $hash');

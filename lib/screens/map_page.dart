@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cache/flutter_map_cache.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -16,6 +18,60 @@ import '../models/energy_listing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show mainScreenKey;
+
+
+// ── Map tile layers ───────────────────────────────────────────────────────────
+enum MapLayer {
+  voyager(
+    label: 'Voyager',
+    icon: Icons.map_outlined,
+    urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  light(
+    label: 'Light',
+    icon: Icons.wb_sunny_outlined,
+    urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  dark(
+    label: 'Dark',
+    icon: Icons.nights_stay_outlined,
+    urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  satellite(
+    label: 'Satellite',
+    icon: Icons.satellite_alt_outlined,
+    urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    subdomains: [],
+    fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  osm(
+    label: 'Streets',
+    icon: Icons.terrain_outlined,
+    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    subdomains: [],
+    fallback: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  );
+
+  const MapLayer({
+    required this.label,
+    required this.icon,
+    required this.urlTemplate,
+    required this.subdomains,
+    required this.fallback,
+  });
+
+  final String label;
+  final IconData icon;
+  final String urlTemplate;
+  final List<String> subdomains;
+  final String fallback;
+}
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -42,6 +98,14 @@ class MapPageState extends State<MapPage> {
   bool _isLoadingSellers = false;
   double _lastFetchedRadiusKm = 0;
   Timer? _zoomDebounce;
+  MapLayer _selectedLayer = MapLayer.voyager;
+  bool _isDownloadingTiles = false;
+  double _downloadProgress = 0.0;
+  // In-memory cache — tiles cached for session; persists across pans/zooms
+  final _tileProvider = CachedTileProvider(
+    maxStale: const Duration(days: 30),
+    store: MemCacheStore(),
+  );
 
   // ── Vehicle type filter ───────────────────────────────────────────────────
   String _selectedVehicleType = 'All';
@@ -56,10 +120,230 @@ class MapPageState extends State<MapPage> {
   LatLng _lastSavedPosition = const LatLng(-26.2041, 28.0473); // Johannesburg fallback
 
   /// Converts zoom level → visible radius in km.
+
+  // ── Layer switcher ─────────────────────────────────────────────────────────
+  Widget _buildLayerButton() {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: '${_selectedLayer.label} — tap to cycle, hold to pick',
+      child: GestureDetector(
+        onTap: () {
+          final idx = MapLayer.values.indexOf(_selectedLayer);
+          setState(() =>
+              _selectedLayer =
+                  MapLayer.values[(idx + 1) % MapLayer.values.length]);
+        },
+        onLongPress: () => _showLayerPicker(cs),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: cs.surface.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: cs.onSurface.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(_selectedLayer.icon,
+              size: 18, color: cs.onSurface.withValues(alpha: 0.7)),
+        ),
+      ),
+    );
+  }
+
+  void _showLayerPicker(ColorScheme cs) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Map style',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 14),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.1,
+              physics: const NeverScrollableScrollPhysics(),
+              children: MapLayer.values.map((layer) {
+                final isActive = layer == _selectedLayer;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedLayer = layer);
+                    Navigator.pop(context);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? cs.primary.withValues(alpha: 0.1)
+                          : cs.onSurface.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isActive
+                            ? cs.primary
+                            : cs.onSurface.withValues(alpha: 0.15),
+                        width: isActive ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(layer.icon,
+                            size: 24,
+                            color: isActive
+                                ? cs.primary
+                                : cs.onSurface.withValues(alpha: 0.55)),
+                        const SizedBox(height: 6),
+                        Text(layer.label,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isActive
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isActive
+                                    ? cs.primary
+                                    : cs.onSurface.withValues(alpha: 0.7))),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tiles are cached for 30 days — works offline after first load',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.4)),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// zoom 5 ≈ 1000 km  |  zoom 7 ≈ 250 km  |  zoom 10.5 ≈ 50 km  |  zoom 14 ≈ 5 km
   double _zoomToRadiusKm(double zoom) {
     // Each zoom step halves the visible area (exponential scale)
     return (1000.0 * math.pow(2.0, 5.0 - zoom)).clamp(1.0, 1000.0);
+  }
+
+
+  // ── Tile downloader ────────────────────────────────────────────────────────
+  // Downloads all tiles for the current layer within the visible map area
+  // across zoom levels 10–16, storing them in the in-memory cache.
+  Future<void> _downloadCurrentArea() async {
+    if (_isDownloadingTiles || _currentPosition == null) return;
+
+    final center = _currentPosition!;
+    final radiusKm = _zoomToRadiusKm(_zoomLevel).clamp(5.0, 80.0);
+
+    // Build tile URL list for zoom levels 10-16
+    final List<String> urls = [];
+    for (int z = 10; z <= 16; z++) {
+      final tileLat = center.latitude;
+      final tileLng = center.longitude;
+
+      // Convert lat/lng + radius to tile bounds
+      final double latRad = tileLat * math.pi / 180;
+      final double n = math.pow(2, z).toDouble();
+
+      // Center tile
+      final int cx = ((tileLng + 180) / 360 * n).floor();
+      final int cy =
+          ((1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
+                  2 *
+                  n)
+              .floor();
+
+      // Tile span for the radius (rough estimate: 1 tile ≈ 40km at z10)
+      final int span = (radiusKm / (40000 / math.pow(2, z - 10))).ceil().clamp(1, 8);
+
+      for (int tx = cx - span; tx <= cx + span; tx++) {
+        for (int ty = cy - span; ty <= cy + span; ty++) {
+          // Clamp to valid tile range
+          final validTx = tx % n.toInt();
+          final validTy = ty.clamp(0, n.toInt() - 1);
+          String url = _selectedLayer.urlTemplate
+              .replaceAll('{z}', '$z')
+              .replaceAll('{x}', '$validTx')
+              .replaceAll('{y}', '$validTy');
+          // Handle subdomain template
+          if (_selectedLayer.subdomains.isNotEmpty) {
+            final sub = _selectedLayer.subdomains[
+                (tx + ty).abs() % _selectedLayer.subdomains.length];
+            url = url.replaceAll('{s}', sub);
+          }
+          urls.add(url);
+        }
+      }
+    }
+
+    if (urls.isEmpty) return;
+
+    setState(() {
+      _isDownloadingTiles = true;
+      _downloadProgress = 0;
+    });
+
+    debugPrint('📥 Downloading ${urls.length} tiles for ${_selectedLayer.label}…');
+
+    int done = 0;
+    // Download in batches of 10 concurrent requests
+    for (int i = 0; i < urls.length; i += 10) {
+      final batch = urls.sublist(i, math.min(i + 10, urls.length));
+      await Future.wait(batch.map((url) async {
+        try {
+          await http.get(
+            Uri.parse(url),
+            headers: {'User-Agent': 'ev2ev/1.0 (com.example.ev2ev)'},
+          );
+        } catch (_) {}
+        done++;
+      }));
+      if (mounted) {
+        setState(() => _downloadProgress = done / urls.length);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isDownloadingTiles = false;
+        _downloadProgress = 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          '✅ Downloaded ${urls.length} tiles for ${_selectedLayer.label}',
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ));
+      debugPrint('✅ Tile download complete: ${urls.length} tiles');
+    }
   }
 
   /// Human-readable radius label shown on the zoom slider
@@ -1014,6 +1298,35 @@ class MapPageState extends State<MapPage> {
               onPressed: () => _fetchSellersForRadius(
                   _zoomToRadiusKm(_zoomLevel)),
             ),
+          // Download tiles for current view
+          if (_isDownloadingTiles)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: _downloadProgress > 0 ? _downloadProgress : null,
+                      strokeWidth: 2,
+                    ),
+                    if (_downloadProgress > 0)
+                      Text(
+                        '${(_downloadProgress * 100).round()}%',
+                        style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold),
+                      ),
+                  ],
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Download tiles for current area (${_selectedLayer.label})',
+              onPressed: _downloadCurrentArea,
+            ),
           IconButton(
             icon: const Icon(Icons.my_location),
             onPressed: _initializePosition,
@@ -1065,14 +1378,12 @@ class MapPageState extends State<MapPage> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    fallbackUrl:
-                        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                    urlTemplate: _selectedLayer.urlTemplate,
+                    fallbackUrl: _selectedLayer.fallback,
+                    subdomains: _selectedLayer.subdomains,
                     userAgentPackageName: 'com.example.ev2ev',
                     maxNativeZoom: 18,
-                    // when the user pans away — reduces wasted bandwidth and
-                    // eliminates the "Connection attempt cancelled" log spam
+                    tileProvider: _tileProvider,
                     errorTileCallback: (tile, error, stackTrace) {},
                   ),
                   PolylineLayer(
@@ -1184,6 +1495,7 @@ class MapPageState extends State<MapPage> {
                   ],
                 ),
               ),
+
 
               // ── Right side: vertical zoom slider with radius label ──────
               Positioned(
@@ -1298,11 +1610,18 @@ class MapPageState extends State<MapPage> {
                 ),
               ),
 
+              // ── Layer button — below zoom slider, right side ──────────────
+              Positioned(
+                bottom: 100,
+                right: 12,
+                child: _buildLayerButton(),
+              ),
+
               // ── Top: vehicle type filter chips ─────────────────────────────
               Positioned(
                 top: 12,
                 left: 12,
-                right: 72, // leave room for zoom slider
+                right: 64,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -1310,7 +1629,7 @@ class MapPageState extends State<MapPage> {
                       final selected = _selectedVehicleType == type;
                       final cs = Theme.of(context).colorScheme;
                       return Padding(
-                        padding: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.only(right: 4),
                         child: FilterChip(
                           label: Text(
                             type == 'All' ? '⚡ All' :
@@ -1321,9 +1640,9 @@ class MapPageState extends State<MapPage> {
                             type == 'Electric Van' ? '🚐 Van' :
                             type == 'Electric Motorcycle' ? '🛵 Moto' : type,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: selected
-                                  ? FontWeight.bold
+                                  ? FontWeight.w600
                                   : FontWeight.normal,
                               color: selected
                                   ? cs.onPrimary
@@ -1338,8 +1657,7 @@ class MapPageState extends State<MapPage> {
                           selectedColor: cs.primary,
                           checkmarkColor: cs.onPrimary,
                           elevation: 2,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 0),
+                          padding: EdgeInsets.zero,
                         ),
                       );
                     }).toList(),

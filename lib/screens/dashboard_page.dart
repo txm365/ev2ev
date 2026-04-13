@@ -169,7 +169,8 @@ class DashboardPageState extends State<DashboardPage> {
                       radius: 20,
                       backgroundImage: NetworkImage(_avatarUrl!),
                       onBackgroundImageError: (_, __) =>
-                          setState(() => _avatarUrl = null),
+                          WidgetsBinding.instance.addPostFrameCallback(
+                              (_) { if (mounted) setState(() => _avatarUrl = null); }),
                     )
                   else if (!_loadingProfile)
                     CircleAvatar(

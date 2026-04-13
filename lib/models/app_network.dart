@@ -4,6 +4,20 @@
 // Adding a new network only requires adding an entry here — all UI adapts automatically.
 
 enum AppNetwork {
+  // Local Hardhat node — for development and testing.
+  // Run: npx hardhat node   in your hardhat project folder.
+  // RPC is on your PC. Phone must be on same WiFi.
+  // Replace 192.168.10.x with your PC's actual local IP (ip addr / ifconfig).
+  hardhat(
+    displayName: 'Hardhat Local',
+    tokenSymbol: 'ETH',
+    rpcUrl: 'http://localhost:8545',  // overridden at runtime via settings
+    chainId: 31337,
+    coingeckoId: 'ethereum',
+    faucetUrl: 'http://localhost:8545',
+    explorerUrl: 'http://localhost:8545',
+    isTestnet: true,
+  ),
   polygon(
     displayName: 'Polygon Amoy',
     tokenSymbol: 'POL',
@@ -17,7 +31,7 @@ enum AppNetwork {
   ethereum(
     displayName: 'Ethereum Sepolia',
     tokenSymbol: 'ETH',
-    rpcUrl: 'https://rpc.sepolia.org',
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
     chainId: 11155111,
     coingeckoId: 'ethereum',
     faucetUrl: 'https://sepoliafaucet.com',

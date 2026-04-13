@@ -454,14 +454,15 @@ class _RequestCardState extends State<RequestCard>
                           if (!widget.isReceived &&
                               widget.onPayWithMatic != null) ...[
                             const SizedBox(height: 10),
-                            SizedBox(
+                            Consumer<BlockchainProvider>(
+                              builder: (ctx, bp, _) => SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
                                 onPressed: widget.onPayWithMatic,
                                 icon: const Icon(Icons.bolt_rounded,
                                     size: 18),
-                                label: const Text('Pay with POL',
-                                    style: TextStyle(
+                                label: Text('Pay with ${bp.network.tokenSymbol}',
+                                    style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold)),
                                 style: ElevatedButton.styleFrom(
@@ -477,6 +478,7 @@ class _RequestCardState extends State<RequestCard>
                                 ),
                               ),
                             ),
+                            ), // Consumer
                           ],
                         ],
                       ],

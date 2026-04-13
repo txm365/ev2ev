@@ -141,6 +141,10 @@ class BlockchainProvider with ChangeNotifier {
   double? _polToZarRate;        // live ZAR rate for current network token
   AppNetwork _network = AppNetwork.polygon; // active network
   static const _prefNetworkKey = 'ev2ev_selected_network';
+  static const _prefHardhatUrl = 'ev2ev_hardhat_rpc_url';
+  static const _defaultHardhatUrl = 'http://192.168.1.1:8545';
+  String _hardhatRpcUrl = 'http://192.168.1.1:8545';
+  String get hardhatRpcUrl => _hardhatRpcUrl;
   final List<EscrowTrade> _trades = [];
   Timer? _balancePollTimer;
 
@@ -189,6 +193,22 @@ class BlockchainProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final key = prefs.getString(_prefNetworkKey);
     if (key != null) _network = AppNetwork.fromKey(key);
+    _hardhatRpcUrl = prefs.getString(_prefHardhatUrl) ?? _defaultHardhatUrl;
+  }
+
+  /// Update and persist the Hardhat RPC URL.
+  /// If Hardhat is the active network, reinitialises the client immediately.
+  Future<void> setHardhatRpcUrl(String url) async {
+    _hardhatRpcUrl = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefHardhatUrl, url);
+    if (_network == AppNetwork.hardhat) {
+      _wallet.reinitializeForNetwork(AppNetwork.hardhat, overrideUrl: url);
+      _polBalance = 0.0;
+      notifyListeners();
+      await refreshBalance();
+      _fetchZarRate();
+    }
   }
 
   Future<void> switchNetwork(AppNetwork network) async {
@@ -201,7 +221,10 @@ class BlockchainProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefNetworkKey, network.name);
     // Point wallet service RPC at new network
-    _wallet.reinitializeForNetwork(network);
+    _wallet.reinitializeForNetwork(
+      network,
+      overrideUrl: network == AppNetwork.hardhat ? _hardhatRpcUrl : null,
+    );
     // Refresh balance and rate for new network
     await refreshBalance();
     _fetchZarRate();
@@ -226,7 +249,10 @@ class BlockchainProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _wallet.initialize(network: _network);
+      await _wallet.initialize(
+        network: _network,
+        overrideUrl: _network == AppNetwork.hardhat ? _hardhatRpcUrl : null,
+      );
       _walletAddress = _wallet.publicAddress;
 
       // Save wallet address to Supabase user profile so sellers can be paid
@@ -261,12 +287,26 @@ class BlockchainProvider with ChangeNotifier {
   Future<void> _syncWalletAddressToSupabase() async {
     try {
       final userId = _supabase.auth.currentUser?.id;
+      final email = _supabase.auth.currentUser?.email;
       if (userId == null || _walletAddress == null) return;
 
-      await _supabase
-          .from('profiles')                        // base table, not the view
-          .upsert({'user_id': userId, 'wallet_address': _walletAddress},
-              onConflict: 'user_id');
+      // Fetch existing row first to preserve non-null fields (e.g. email)
+      final existing = await _supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      await _supabase.from('profiles').upsert({
+        'user_id': userId,
+        'wallet_address': _walletAddress,
+        // Preserve existing email — fall back to auth email if row is new
+        'email': existing?['email'] ?? email ?? '',
+        if (existing?['first_name'] != null)
+          'first_name': existing!['first_name'],
+        if (existing?['last_name'] != null)
+          'last_name': existing!['last_name'],
+      }, onConflict: 'user_id');
 
       debugPrint('✅ Wallet address synced to Supabase');
     } catch (e) {
@@ -301,10 +341,9 @@ class BlockchainProvider with ChangeNotifier {
       // Convert values to contract-expected units
       final energyMilliKwh = BigInt.from((energyKwh * 1000).round());
       final pricePerKwh = BigInt.from(1); // placeholder — price is in totalPol
-      final valueWei = EtherAmount.fromBase10String(
-        EtherUnit.ether,
-        totalPol.toStringAsFixed(18),
-      ).getInWei;
+      // Convert ETH/POL float to wei safely — avoid decimal point in BigInt
+      // Multiply by 1e18 then round to integer wei
+      final valueWei = BigInt.from((totalPol * 1e18).truncate());
 
       // Encode deposit() call data
       final data = _fn('deposit').encodeCall([
